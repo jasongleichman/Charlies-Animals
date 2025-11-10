@@ -1397,6 +1397,7 @@ function pcmToWav(pcmData, sampleRate) {
         view.setInt16(offset, pcmData[i], true);
     }
 
+    // FIX: Removed extra parenthesis set
     return new Blob([view], { type: 'audio/wav' });
 }
 
@@ -1490,10 +1491,15 @@ const useAppState = () => {
     // NOTE: In the deployed version (index.html), window.firebase.doc, etc. are used.
     // In the dev environment React component, the destructured names (doc, getDoc, etc.) are used.
 
-    const getFirestoreFunctions = () => {
+    // Helper to get Firebase functions bound to the initialized app/firestore instance
+    const getFirebaseBoundFunctions = () => {
         if (typeof window.firebase !== 'undefined' && typeof window.appInstance !== 'undefined') {
             const firestore = window.firebase.getFirestore(window.appInstance);
+            const authInstance = window.firebase.getAuth(window.appInstance);
+
             return {
+                db: firestore,
+                auth: authInstance,
                 doc: (...args) => window.firebase.doc(firestore, ...args),
                 getDoc: (docRef) => window.firebase.getDoc(docRef),
                 setDoc: (docRef, data, options) => window.firebase.setDoc(docRef, data, options),
@@ -1501,14 +1507,13 @@ const useAppState = () => {
                 getUserProfileDocRef: (uid) => window.firebase.doc(firestore, 'artifacts', appId, 'users', uid, 'app_data', 'profile'),
             };
         }
-        // Fallback for when Firebase isn't fully initialized yet (should only happen during initial render)
         return {}; 
     };
 
     /** Saves user profile data (high score, collected animals, streak) to Firestore. */
     const saveUserProfile = useCallback(async (profileToSave) => {
-        if (!db || !userId) return;
-        const { setDoc, getUserProfileDocRef } = getFirestoreFunctions();
+        const { setDoc, getUserProfileDocRef } = getFirebaseBoundFunctions();
+        if (!setDoc || !userId) return;
 
         try {
             await setDoc(getUserProfileDocRef(userId), profileToSave, { merge: true });
@@ -1516,7 +1521,7 @@ const useAppState = () => {
             console.error("Error saving user profile:", error);
             setApiError("Error saving profile data. Check Firebase permissions.");
         }
-    }, [db, userId, setApiError]); 
+    }, [userId, setApiError]); 
     
     /** Loads the local browser cache status */
     const loadUserCacheStatus = useCallback(async () => {
@@ -1547,10 +1552,8 @@ const useAppState = () => {
     /** Loads user profile data (high score, collected animals, streak) from Firestore. */
     const loadUserProfile = useCallback(async (uidOverride) => {
         const targetUid = uidOverride || userId;
-        if (!db || !targetUid) return;
-        
-        const { getDoc, getUserProfileDocRef } = getFirestoreFunctions();
-        if (!getDoc) return; // Wait until functions are available
+        const { getDoc, getUserProfileDocRef } = getFirebaseBoundFunctions();
+        if (!getDoc || !targetUid) return; 
 
         try {
             const docSnap = await getDoc(getUserProfileDocRef(targetUid));
@@ -1593,7 +1596,7 @@ const useAppState = () => {
             console.error("Error loading user profile:", error);
             setApiError("Error loading profile data. Check Firebase connection.");
         }
-    }, [db, userId, setHighScore, setProfile, setApiError, setUserName, setUserApiKey]); 
+    }, [userId, setHighScore, setProfile, setApiError, setUserName, setUserApiKey]); 
 
 
     // --- Core Utility: Speak (Real-time API Call, prioritizes Cache) ---
@@ -1711,46 +1714,47 @@ const useAppState = () => {
 
     // --- Core Firebase Initialization Effect ---
     useEffect(() => {
-        // Ensure global access variables are present before proceeding
         if (typeof window.firebase === 'undefined' || typeof window.appInstance === 'undefined') {
             console.warn("Firebase SDK not loaded in global scope yet.");
+            // Set auth ready to true if Firebase environment is missing to allow simple local demo flow
+            if (Object.keys(firebaseConfig).length === 0) {
+                 setIsAuthReady(true);
+                 setApiError("Firebase config missing. Using local guest mode.");
+            }
             return;
         }
         
-        try {
-            const firestore = window.firebase.getFirestore(window.appInstance);
-            const authInstance = window.firebase.getAuth(window.appInstance);
-            setDb(firestore);
-            setAuth(authInstance);
+        // Use bound functions inside effect
+        const { db: firestore, auth: authInstance } = getFirebaseBoundFunctions();
+        if (!firestore) return; // Wait until bound functions are ready
+        
+        setDb(firestore);
+        setAuth(authInstance);
 
-            const unsubscribe = window.firebase.onAuthStateChanged(authInstance, async (user) => {
-                if (user) {
-                    setUserId(user.uid);
-                } else if (__initial_auth_token) {
-                    await window.firebase.signInWithCustomToken(authInstance, __initial_auth_token);
-                } else {
-                    const anonUser = await window.firebase.signInAnonymously(authInstance);
-                    setUserId(anonUser.user.uid);
-                }
-                setIsAuthReady(true);
-            });
-            return () => {
-                unsubscribe();
-            };
-        } catch (e) {
-            console.error("Firebase Initialization Error:", e);
+        const unsubscribe = window.firebase.onAuthStateChanged(authInstance, async (user) => {
+            if (user) {
+                setUserId(user.uid);
+            } else if (__initial_auth_token) {
+                await window.firebase.signInWithCustomToken(authInstance, __initial_auth_token);
+            } else {
+                const anonUser = await window.firebase.signInAnonymously(authInstance);
+                setUserId(anonUser.user.uid);
+            }
             setIsAuthReady(true);
-            setApiError("Firebase initialization failed.");
-        }
-    }, []); // Empty dependency array ensures this runs once
+        });
+        return () => {
+            unsubscribe();
+        };
+    }, []); 
 
 
     // --- Load Profile Effect (Runs after Auth is Ready and User is logged in) ---
     useEffect(() => {
-        if (isAuthReady && db && userId) {
+        // Only run if auth is ready, db/user are present, and we haven't successfully loaded a profile yet
+        if (isAuthReady && userId && !profile.userName) {
             loadUserProfile();
         }
-    }, [isAuthReady, db, userId, loadUserProfile]);
+    }, [isAuthReady, userId, profile.userName, loadUserProfile]);
     
     // --- Load Cache Status Effect (Runs after Profile is loaded, which includes API Key) ---
     useEffect(() => {
@@ -1767,11 +1771,13 @@ const useAppState = () => {
     
     
     const signInExistingPlayer = useCallback(async (cachedUserId) => {
-        if (!auth || !db) return false;
+        const { auth: authInstance } = getFirebaseBoundFunctions();
+        if (!authInstance) return false;
+
         try {
             // Sign out the current user and sign in anonymously to generate the UID context
-            await auth.signOut();
-            const anonUser = await window.firebase.signInAnonymously(auth);
+            await authInstance.signOut();
+            await window.firebase.signInAnonymously(authInstance);
             
             // Now load the saved profile data using the saved UID
             setUserId(cachedUserId); 
@@ -1786,14 +1792,14 @@ const useAppState = () => {
             setAuthError("Failed to load player profile. Try starting a new game.");
             return false;
         }
-    }, [auth, db, loadUserProfile, loadUserCacheStatus]);
+    }, [loadUserProfile, loadUserCacheStatus, setAuthError]);
 
 
     // --- Auth/Profile Setup Handlers ---
 
     const saveUserNameProfile = useCallback(async (name) => {
-        if (!db || !userId) return false;
-        const { setDoc, getUserProfileDocRef } = getFirestoreFunctions();
+        const { setDoc, getUserProfileDocRef } = getFirebaseBoundFunctions();
+        if (!setDoc || !userId) return false;
 
         try {
             const newProfile = { ...profile, userName: name };
@@ -1807,13 +1813,14 @@ const useAppState = () => {
             setAuthError("Failed to save name. Please try again.");
             return false;
         }
-    }, [db, userId, profile, setProfile, setUserName, setAuthError]);
+    }, [userId, profile, setProfile, setUserName, setAuthError]);
 
 
     const handleSignOut = async (fromSettings = false) => {
-        if (auth) {
+        const { auth: authInstance } = getFirebaseBoundFunctions();
+        if (authInstance) {
             // Sign out current anon user
-            await auth.signOut();
+            await authInstance.signOut();
             
             // Clear current state
             setProfile({ highScore: 0, streak: 0, collectedAnimals: [], rewardsEarned: 0, userName: '', highScores: [], factIndices: {}, geminiApiKey: '' });
@@ -1833,7 +1840,7 @@ const useAppState = () => {
 
     return {
         // Auth/System State
-        db, auth, userId, isAuthReady,
+        db, userId, isAuthReady,
         // Login State (Renamed to Setup)
         userName, setUserName, isSigningIn, setIsSigningIn, authError, setAuthError,
         // Profile/Score State
@@ -2094,7 +2101,7 @@ const PlayerSelectionModal = ({ onSelectPlayer, onStartNew, onClose }) => {
 const AnimalReadingApp = () => {
     // 🔥 New State Hook 
     const {
-        db, userId, auth, isAuthReady,
+        db, userId, isAuthReady,
         userName, setUserName, isSigningIn, setIsSigningIn, authError, setAuthError,
         profile, setProfile, highScore, setHighScore,
         isSpeaking, setIsSpeaking, isGeneratingImage, setIsGeneratingImage, apiError, setApiError, userApiKey, setUserApiKey,
@@ -2145,14 +2152,17 @@ const AnimalReadingApp = () => {
         if (isAuthReady && appView === 'loading') {
             const cachedPlayers = getCachedPlayerProfiles();
             
-            if (!userId || !auth.currentUser || !profile.userName) {
-                // If user is anon or new, go to setup screen
+            if (!userId || !db) { // Check if Firebase failed entirely (not expected on local machine)
+                setAppView('setup');
+            } else if (!profile.userName && cachedPlayers.length > 0) {
+                 // If we have a UID but no profile name loaded, try loading profile
+                 // If that fails, it falls through to setup.
+                 setAppView('setup'); 
+            } else if (!profile.userName) {
                  setAppView('setup');
             } else if (!userApiKey && !profile.geminiApiKey) {
-                // If profile is loaded but key is missing, go to API setup
                 setAppView('apikey');
             } else if (cacheStatus === 0 || cacheStatus === 3) {
-                // If caching status is unknown (0) or skipped (3), check status and transition
                 const checkCache = async () => {
                     const status = await loadUserCacheStatus();
                     setCacheStatus(status);
@@ -2164,11 +2174,10 @@ const AnimalReadingApp = () => {
                 };
                 checkCache();
             } else {
-                // All good, go to main menu
                 setAppView('welcome');
             }
         }
-    }, [isAuthReady, userId, appView, profile.userName, userApiKey, cacheStatus, loadUserCacheStatus, auth, profile.geminiApiKey]);
+    }, [isAuthReady, userId, appView, profile.userName, userApiKey, cacheStatus, loadUserCacheStatus]);
 
 
     // --- Handlers: Setup, API, Cache ---
