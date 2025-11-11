@@ -333,6 +333,18 @@
 
 <script type="text/babel">
     // --- START OF APP CODE ---
+
+// Example helper in your app:
+async function getLocalImageForAnimal(name, slug) {
+  const manifest = await fetch("./assets/manifest.json", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null)
+    .catch(() => null);
+  if (!manifest) return null;
+  const s = slug || name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+  return (manifest.images && manifest.images[s]) ? manifest.images[s] : null; // e.g. "./assets/images/fennec-fox.webp"
+}
+
+
     // Note: Global Firebase references must use 'window.firebase.' where needed.
 
     const { useState, useEffect, useCallback, useRef } = React;
