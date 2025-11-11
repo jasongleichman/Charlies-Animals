@@ -5,8 +5,8 @@ on:
   push:
     paths:
       - "docs/index.html"
-      - "scripts/**.mjs"
-      - "scripts/**.cjs"
+      - "scripts/**"
+      - ".github/workflows/build-assets.yml"
 
 permissions:
   contents: write
@@ -26,36 +26,35 @@ jobs:
 
       - name: Ensure folders
         run: |
-          mkdir -p scripts docs/assets docs/assets/images docs/assets/tts
+          mkdir -p docs/assets/images docs/assets/tts
 
-      # Build images manifest from files that already exist in docs/assets/images
-      - name: Build images manifest (diff-only)
+      # (Optional) refresh images manifest (diff-only)
+      - name: Build images manifest
         run: |
           node scripts/build_images_from_wikimedia.mjs --db=docs/index.html --out=./docs/assets
 
-      # Build TTS with AWS Polly (creates only missing files)
+      # ⬇️ NEW: install AWS Polly SDK so the runner can call Polly
+      - name: Install deps for TTS
+        run: npm i @aws-sdk/client-polly
+
+      # ⬇️ NEW: build only the missing TTS files with AWS Polly
       - name: Build TTS (diff-only, AWS Polly)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }} # e.g. us-east-1
-          VOICE_ID: Matthew
+          AWS_REGION: ${{ secrets.AWS_REGION }}   # e.g. us-east-1
         run: |
-          node scripts/build_tts_polly.cjs
+          node scripts/build_tts_polly.cjs --db=docs/index.html --out=./docs/assets --rate=1000 --voice=Matthew
 
       # Commit only if something actually changed
       - name: Commit & push if changes
         shell: bash
         run: |
-          # Stage only generated assets and maps; ignore node_modules, etc.
           git add docs/assets docs/images_map.json 2>/dev/null || true
-
-          # Skip commit if nothing is staged
           if git diff --cached --quiet; then
             echo "No staged changes to commit."
             exit 0
           fi
-
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "chore(assets): add/update images and TTS (diff-only)"
