@@ -58,46 +58,37 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
+  
   <style>
-    /* iPadOS "no-scroll" viewport scaling
-       We render the app at a virtual 1024x768 and scale to fit current viewport.
-       This keeps everything visible without vertical scroll in landscape. */
-
-    :root{
-      --app-base-w: 1024;
-      --app-base-h: 768;
+    :root {
+      --safe-top: env(safe-area-inset-top);
+      --safe-bottom: env(safe-area-inset-bottom);
+      --safe-left: env(safe-area-inset-left);
+      --safe-right: env(safe-area-inset-right);
     }
-    html, body { height: 100%; overflow: hidden; }
-    .viewport-shell{
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    html { height: 100%; }
+    body {
+      min-height: 100vh;
       background: #f8fafc;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+      padding-left: var(--safe-left);
+      padding-right: var(--safe-right);
     }
-    .viewport-shell > #root{
-      width: calc(var(--app-base-w) * 1px);
-      height: calc(var(--app-base-h) * 1px);
-      transform-origin: center center;
-      will-change: transform;
+    /* Scale base font-size down a touch on shorter landscapes so headings don't clip */
+    @media (orientation: landscape) {
+      html { font-size: clamp(14px, 1.9vh, 16px); }
     }
-
-    /* Tune typography & paddings responsively inside the base canvas */
-    .text-responsive-title{ font-size: clamp(20px, 3.2vw, 38px); }
-    .text-responsive-body{ font-size: clamp(13px, 1.8vw, 18px); }
-    .card-pad{ padding: clamp(16px, 2.2vw, 28px); }
-    .btn-pad{ padding: clamp(10px, 1.8vw, 14px) clamp(14px, 2.2vw, 20px); }
-
-    /* Landscape-specific polish for iPad widths; no scroll needed */
-    @media (orientation: landscape){
-      body{ overflow: hidden; }
+    @media (max-width: 420px) {
+      html { font-size: clamp(14px, 2.2vw, 16px); }
     }
+    /* Make main content areas naturally scroll if needed while keeping sidebar stable */
+    #root, #app, main { min-height: 100vh; }
   </style>
 
 </head>
 <body>
-  <div id="viewport-root" class="viewport-shell"><div id="root"></div></div>
+  <div id="root"></div>
 
   <!--  Your app code (single Babel block ONLY)  -->
   
@@ -107,12 +98,6 @@
     window.firebase = window.firebase || {};       // avoid undefined errors
   </script>
 
-<style>
-  /* Landscape tweaks */
-  @media (orientation: landscape) and (max-height: 430px) {
-    body { overflow:auto; }
-  }
-</style>
 <script type="text/babel">
     // --- START OF APP CODE ---
     // Note: Global Firebase references must use 'window.firebase.' where needed.
@@ -3359,25 +3344,5 @@ window.addEventListener('load', ()=>{ try { window.__precacheKnownImages?.(); } 
 </script>
 
 
-  <script>
-    (function(){
-      const BASE_W = 1024, BASE_H = 768;
-      const shell = document.getElementById('viewport-root');
-      const root = document.getElementById('root');
-      function safe(n){ return Math.max(1, Math.floor(n)); }
-      function resize(){
-        if(!shell || !root) return;
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        const scale = Math.min(w/BASE_W, h/BASE_H);
-        root.style.transform = 'scale(' + scale + ')';
-      }
-      window.addEventListener('resize', resize);
-      window.addEventListener('orientationchange', ()=>setTimeout(resize, 50));
-      window.addEventListener('load', resize);
-      resize();
-    })();
-  </script>
-
-</body>
+  </body>
 </html>
