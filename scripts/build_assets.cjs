@@ -1,13 +1,10 @@
 /**
  * scripts/build_assets.cjs (CommonJS)
  * Builds local images + TTS audio from docs/index.html (ANIMAL_DATABASE),
- * and writes docs/assets/manifest.json (so GitHub Pages can serve it).
+ * and writes docs/assets/manifest.json.
  *
  * Usage (CI/local):
- *   node scripts/build_assets.cjs --db docs/index.html --out ./docs/assets --images --tts --rate 7000
- *
- * Env:
- *   GEMINI_API_KEY=<your key>   (only needed for --tts)
+ *   node scripts/build_assets.cjs --db=docs/index.html --out=./docs/assets --images --tts --rate=7000
  */
 
 const fs = require("fs");
@@ -15,16 +12,35 @@ const fsp = require("fs/promises");
 const path = require("path");
 const vm = require("vm");
 
-// ---- CLI args ----
-const args = Object.fromEntries(
-  process.argv.slice(2).map((a) => {
-    const [k, v] = a.includes("=") ? a.split("=", 2) : [a, true];
-    return [k.replace(/^--/, ""), v];
-  })
-);
+// ---- CLI args (supports --key=value and --key value) ----
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+    if (!token.startsWith("--")) continue;
 
-const DB_FILE = String(args.db || "docs/index.html");    // read from your published index
-const OUT_DIR = String(args.out || "./docs/assets");      // MUST be under docs/
+    const eq = token.indexOf("=");
+    if (eq !== -1) {
+      const key = token.slice(2, eq);
+      const val = token.slice(eq + 1);
+      out[key] = val === "" ? true : val;
+    } else {
+      const key = token.slice(2);
+      const next = argv[i + 1];
+      if (next && !next.startsWith("--")) {
+        out[key] = next;
+        i++;
+      } else {
+        out[key] = true;
+      }
+    }
+  }
+  return out;
+}
+
+const args = parseArgs(process.argv.slice(2));
+const DB_FILE = String(args.db || "docs/index.html");
+const OUT_DIR = String(args.out || "./docs/assets");
 const DO_TTS = !!args.tts;
 const DO_IMAGES = !!args.images;
 const RATE_MS = Number(args.rate || 7000);
@@ -37,7 +53,6 @@ const TTS_ENDPOINT =
 function ttsPayload(text) {
   return {
     contents: [{ role: "user", parts: [{ text }]}],
-    // clear US male teacher vibe; easy to understand
     audioConfig: { audioEncoding: "LINEAR16", speakingRate: 0.92, pitch: 0.0, voice: "en-US" }
   };
 }
@@ -96,7 +111,9 @@ async function readManifest(p) {
 }
 
 async function main() {
+  console.log("📦 Args:", args);
   const animals = await readAnimals();
+  console.log(`Found ${animals.length} animals in ${DB_FILE}`);
 
   const audioDir = path.join(OUT_DIR, "audio");
   const imgDir   = path.join(OUT_DIR, "img");
@@ -121,18 +138,18 @@ async function main() {
           const buf = await fetchBuffer(imageUrl, { cache: "no-store" });
           await fsp.writeFile(dest, buf);
           manifest.images[slug] = `./assets/img/${slug}.jpg`;
-          console.log("IMG ok:", a.name);
+          console.log("🖼️ IMG ok:", a.name);
         } else {
-          console.log("IMG skip (no URL):", a.name);
+          console.log("🚫 IMG skip:", a.name);
         }
       } catch (e) {
-        console.warn("IMG fail:", a.name, e.message);
+        console.warn("❌ IMG fail:", a.name, e.message);
       }
       await sleep(50);
     }
   }
 
-  // AUDIO (facts)
+  // AUDIO
   if (DO_TTS && GEMINI_KEY) {
     for (const a of animals) {
       const facts = Array.isArray(a.facts) ? a.facts : [];
@@ -149,17 +166,17 @@ async function main() {
           await fsp.writeFile(dest, audio);
           manifest.audio[slug] = `./assets/audio/${slug}.wav`;
           manifest.audioKeys[f] = `./assets/audio/${slug}.wav`;
-          console.log("TTS ok:", a.name, "::", f.slice(0, 60));
+          console.log("🔊 TTS ok:", a.name, "::", f.slice(0, 60));
         } catch (e) {
-          console.warn("TTS fail:", a.name, e.message);
+          console.warn("❌ TTS fail:", a.name, e.message);
         }
-        await sleep(RATE_MS); // 7 seconds default
+        await sleep(RATE_MS);
       }
     }
   }
 
   await fsp.writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
-  console.log("Manifest written:", manifestPath);
+  console.log("✅ Manifest written:", manifestPath);
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });
