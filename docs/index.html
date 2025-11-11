@@ -12,13 +12,13 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 
-  <!-- 🔧 NEW: Lucide UMD (provides the global `lucide` your code uses) -->
+  <!-- Lucide UMD (global 'lucide') -->
   <script src="https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js" crossorigin></script>
 
   <!-- Babel for in-browser JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Firebase SDK via ES Modules (prevents "exports is not defined") -->
+  <!-- Firebase SDK via ES Modules -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -31,7 +31,7 @@
       getFirestore, doc, getDoc, setDoc
     };
 
-    // Optional: pull config if you define __firebase_config in a separate script
+    // Optional config injection
     const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
     if (Object.keys(firebaseConfig).length > 0) {
       window.appInstance = initializeApp(firebaseConfig);
@@ -51,25 +51,19 @@
 <body>
   <div id="root"></div>
 
-  <!-- Your entire app (unchanged) -->
+  <!-- Your app code (single Babel block ONLY) -->
   <script type="text/babel">
-    // --- START OF APP CODE (unchanged except for the render call at the bottom) ---
+    // --- START OF APP CODE ---
     // Note: Global Firebase references must use 'window.firebase.' where needed.
 
     const { useState, useEffect, useCallback, useRef } = React;
-    // lucide is now defined by the added UMD script above
+    // lucide is now defined by the UMD script above
     const {
       Volume2, Star, Trophy, ArrowRight, Loader2, XCircle, KeyRound, Play, Home, Award,
       BookOpen, MessageSquare, Database, CheckCircle, Users, Image, Zap, ChevronRight,
       Lock, Clock, Video, Menu, Settings, LogOut, X, ChevronLeft
     } = lucide;
 
-    <script type="text/babel">
-        // --- START OF APP CODE ---
-        // Note: Global Firebase references must now use 'window.firebase.' where needed.
-        
-        const { useState, useEffect, useCallback, useRef } = React;
-        const { Volume2, Star, Trophy, ArrowRight, Loader2, XCircle, KeyRound, Play, Home, Award, BookOpen, MessageSquare, Database, CheckCircle, Users, Image, Zap, ChevronRight, Lock, Clock, Video, Menu, Settings, LogOut, X, ChevronLeft } = lucide;
 
         // --- DATABASE ---
         const ANIMAL_DATABASE = [
