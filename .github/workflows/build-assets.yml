@@ -5,7 +5,7 @@ on:
   push:
     paths:
       - "docs/index.html"
-      - "scripts/build_assets.js"
+      - "scripts/build_assets.cjs"
 
 permissions:
   contents: write
@@ -32,7 +32,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          node scripts/build_assets.js --db docs/index.html --out ./docs/assets --images --tts --rate 7000
+          node scripts/build_assets.cjs --db docs/index.html --out ./docs/assets --images --tts --rate 7000
 
       - name: Commit & push if changes
         run: |
