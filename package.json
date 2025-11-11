@@ -1,0 +1,8 @@
+{
+  "name": "charlies-animals",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:assets": "node scripts/build_assets.js --db index.html --out ./assets --images --tts --rate 7000"
+  }
+}
