@@ -332,7 +332,141 @@
   </script>
 
 <script type="text/babel">
-    // --- START OF APP CODE ---
+    
+
+/* ================== AW: Local Profiles (no Firebase) ================== */
+const AW_AVATAR_EMOJI = ["🦊","🦁","🐯","🐻","🐼","🐨","🐵","🦝","🦓","🦒","🦘","🦭","🦥","🦔","🦅","🦉","🦩","🦚"];
+function awLoadProfiles(){ try { return JSON.parse(localStorage.getItem("profiles_v1")||"[]"); } catch { return []; } }
+function awSaveProfiles(list){ try { localStorage.setItem("profiles_v1", JSON.stringify(list)); } catch {} }
+function awGetSavedName(){ try { return localStorage.getItem("playerName") || ""; } catch { return ""; } }
+function awAddOrUpdateProfile(name, avatar){
+  const list = awLoadProfiles();
+  const idx = list.findIndex(p => (p.name||"").toLowerCase() === (name||"").toLowerCase());
+  const record = { name: name.trim(), avatar: avatar || "🦊", lastPlayed: Date.now() };
+  if (idx >= 0) list[idx] = { ...list[idx], ...record }; else list.push(record);
+  awSaveProfiles(list);
+  try { localStorage.setItem("playerName", record.name); } catch {}
+  return record;
+}
+function awClearActiveProfile(){ try { localStorage.removeItem("playerName"); } catch {} }
+
+/* ================== AW: Asset Manifests + Helpers ================== */
+async function awLoadImageManifest(){ try { const r=await fetch("./assets/manifest.json",{cache:"no-store"}); return r.ok?await r.json():null; } catch { return null; } }
+async function awLoadTTSManifest(){ try { const r=await fetch("./assets/tts_manifest.json",{cache:"no-store"}); return r.ok?await r.json():null; } catch { return null; } }
+async function awGetLocalImageForAnimal(name, slug){
+  const m = await awLoadImageManifest(); if (!m || !m.images) return null;
+  const s = (slug||name||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+  return m.images[s] || null;
+}
+
+/* ================== AW: Web Speech TTS Fallback ================== */
+let __awVoices = []; let __awVoiceReady = false;
+function awLoadVoices(){
+  return new Promise(res=>{
+    const tryLoad=()=>{ const v=window.speechSynthesis.getVoices(); if (v && v.length){ __awVoices=v; __awVoiceReady=true; res(v);} else setTimeout(tryLoad,200); };
+    tryLoad();
+  });
+}
+function awPickEnUSMale(){
+  const pref = ["Aaron","Alex","Eddy","Evan","Reed","Tom","Google US English","Microsoft David","Daniel"];
+  const en = __awVoices.filter(v => /en[-_]?US/i.test(v.lang||v.voiceURI||""));
+  for (const n of pref){ const hit=en.find(v => (v.name||v.voiceURI||"").toLowerCase().includes(n.toLowerCase())); if (hit) return hit; }
+  return en[0] || __awVoices[0] || null;
+}
+async function awSpeak(text){
+  try{
+    if (!__awVoiceReady) await awLoadVoices();
+    const u = new SpeechSynthesisUtterance(text||"");
+    const v = awPickEnUSMale(); if (v) u.voice=v;
+    u.rate=0.92; u.pitch=1.0; u.volume=1.0; u.lang="en-US";
+    return new Promise(r=>{ u.onend=r; speechSynthesis.speak(u); });
+  } catch(e){ console.warn("WebSpeech error", e); }
+}
+
+/* ================== AW: Welcome Screen ================== */
+function AW_WelcomeScreen({ onStart }){
+  const [profiles,setProfiles]=React.useState(()=>awLoadProfiles().sort((a,b)=>b.lastPlayed-a.lastPlayed));
+  const [tab,setTab]=React.useState(profiles.length?"existing":"new");
+  const [name,setName]=React.useState(awGetSavedName());
+  const [avatar,setAvatar]=React.useState(AW_AVATAR_EMOJI[Math.floor(Math.random()*AW_AVATAR_EMOJI.length)]);
+  const canStart = name.trim().length>=2;
+  function handleStart(e){ e.preventDefault(); if(!canStart) return; const rec=awAddOrUpdateProfile(name.trim(),avatar); setProfiles(awLoadProfiles().sort((a,b)=>b.lastPlayed-a.lastPlayed)); onStart&&onStart(rec); }
+  function pickExisting(p){ setName(p.name); setAvatar(p.avatar||"🦊"); setTab("new"); }
+  React.useEffect(()=>{ if (window.lucide) window.lucide.createIcons(); },[tab,profiles,name,avatar]);
+  return (
+    <main className="app-shell grid place-items-center px-4 py-6">
+      <div className="welcome-card bg-white/80 backdrop-blur rounded-2xl shadow-xl p-6 sm:p-8 w-full max-w-[720px]">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="font-bold text-2xl">Charlie’s Animal Words</h1>
+          <span className="text-3xl select-none" aria-label="avatar">{avatar}</span>
+        </div>
+        <div className="inline-flex bg-gray-100 rounded-xl p-1 mb-6">
+          <button className={"px-3 py-1 rounded-lg text-sm font-semibold "+(tab==='new'?'bg-emerald-600 text-white':'')} onClick={()=>setTab('new')}>New Player</button>
+          <button className={"px-3 py-1 rounded-lg text-sm font-semibold "+(tab==='existing'?'bg-emerald-600 text-white':'')} onClick={()=>setTab('existing')} disabled={!profiles.length} title={!profiles.length?"No saved players yet":""}>Existing Player</button>
+        </div>
+        {tab==='existing'?(
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            {profiles.length===0 && <div className="text-slate-500">No saved players yet.</div>}
+            {profiles.map((p,i)=>(
+              <button key={i} onClick={()=>pickExisting(p)} className="flex items-center gap-3 p-3 rounded-xl border transition hover:border-emerald-500 text-left">
+                <span className="text-2xl">{p.avatar||"🦊"}</span>
+                <div className="min-w-0">
+                  <div className="font-semibold truncate">{p.name}</div>
+                  <div className="text-xs text-slate-500">Last played {new Date(p.lastPlayed).toLocaleDateString()}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ):(
+          <form onSubmit={handleStart} className="space-y-4">
+            <label className="block text-sm font-medium text-slate-600">Choose your avatar</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {AW_AVATAR_EMOJI.map((e,i)=>(
+                <button type="button" key={i} onClick={()=>setAvatar(e)}
+                  className={"rounded-xl border px-3 py-2 "+(e===avatar?"border-emerald-500 ring-1 ring-emerald-500":"border-slate-200")} aria-label={"avatar "+(i+1)}>{e}</button>
+              ))}
+            </div>
+            <label className="block text-sm font-medium text-slate-600">Player name</label>
+            <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name"
+              className="block w-full rounded-xl border px-4 py-3 bg-slate-50 focus:ring-2 focus:ring-emerald-400" maxLength={30} autoFocus />
+            <div className="flex justify-end">
+              <button type="submit" disabled={!canStart}
+                className={"rounded-xl px-5 py-3 font-semibold flex items-center gap-2 "+(canStart?"bg-emerald-600 text-white hover:bg-emerald-700":"bg-slate-200 text-slate-500 cursor-not-allowed")}>
+                <i data-lucide="play" className="w-5 h-5"></i> Start Playing
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </main>
+  );
+}
+
+/* ================== AW: Caching screen (static only) ================== */
+async function __awPrecacheImageList(urls,onProgress){
+  if(!('caches'in window)){ onProgress&&onProgress(100); return; }
+  const cache = await caches.open("animal-words-cache-v1");
+  let done=0, total=urls.length||1;
+  for(const u of urls){ try{ await cache.add(new Request(u,{cache:"reload"})); }catch{} done++; onProgress&&onProgress(Math.round(done*100/total)); await new Promise(r=>setTimeout(r,50)); }
+}
+function __awCollectDbUrls(db){ const out=[]; for(const a of db||[]){ if(a.image&&/^https?:/i.test(a.image)) out.push(a.image); if(a.photo&&/^https?:/i.test(a.photo)) out.push(a.photo);} return out; }
+function AW_CachingScreen({ onDone }){
+  const [pct,setPct]=React.useState(0);
+  React.useEffect(()=>{ let live=true;(async()=>{
+    let urls=[]; try{ const m=await awLoadImageManifest(); if(m&&m.images) urls=Object.values(m.images);}catch{}
+    urls = Array.from(new Set([...(urls||[]), ...__awCollectDbUrls(typeof ANIMAL_DATABASE!=="undefined"?ANIMAL_DATABASE:[]) ]));
+    await __awPrecacheImageList(urls, p=> live && setPct(p)); live && onDone && onDone();
+  })(); return ()=>{ live=false; }; },[onDone]);
+  return (<main className="w-full h-full flex items-center justify-center p-6">
+    <div className="w-full max-w-[min(55vw,720px)] bg-white rounded-2xl shadow p-6">
+      <div className="font-semibold mb-2">Optimizing app experience…</div>
+      <div className="w-full bg-slate-100 rounded-xl h-3 overflow-hidden"><div className="bg-emerald-500 h-3 transition-all" style={{width:pct+"%"}} /></div>
+      <div className="mt-2 text-sm text-slate-600">{pct}%</div>
+    </div>
+  </main>);
+}
+
+// --- START OF APP CODE ---
 
 // Example helper in your app:
 async function getLocalImageForAnimal(name, slug) {
@@ -3561,8 +3695,7 @@ const AnimalReadingApp = () => {
             return <ApiKeyScreen />;
         case 'caching':
             return <CachingScreen />;
-        case 'welcome':
-            return <WelcomeScreen />;
+        case 'welcome': return <AW_WelcomeScreen onStart={()=>setAppView('game')} />;
         case 'game':
             return <GameScreen />;
         case 'complete':
