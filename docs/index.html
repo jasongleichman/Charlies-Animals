@@ -118,6 +118,16 @@
     // Note: Global Firebase references must use 'window.firebase.' where needed.
 
     const { useState, useEffect, useCallback, useRef } = React;
+// Create safe Firebase handles when config is missing
+const __hasFbConfig = !!(window.appInstance && window.appInstance.options && window.firebase);
+let __safeDb = null, __safeAuth = null;
+try {
+  if (__hasFbConfig) {
+    __safeDb = window.firebase.getFirestore(window.appInstance);
+    __safeAuth = window.firebase.getAuth(window.appInstance);
+  }
+} catch(e){ /* ignore */ }
+
 
 // --- Persistence helpers for existing user ---
 const getSavedName = () => { try { return localStorage.getItem('playerName') || ''; } catch { return ''; } };
@@ -1852,7 +1862,7 @@ const useAppState = () => {
 
     // --- Core Firebase Initialization Effect ---
     useEffect(() => {
-        if (typeof window.appInstance === 'undefined') {
+        if (!window.appInstance || !window.appInstance.options) {
              console.warn("Firebase app instance not initialized in the global scope.");
              setIsAuthReady(true);
              setApiError("Firebase setup missing from index.html.");
@@ -1862,8 +1872,8 @@ const useAppState = () => {
         try {
             const firestore = window.firebase.getFirestore(window.appInstance);
             const authInstance = window.firebase.getAuth(window.appInstance);
-            setDb(firestore);
-            setAuth(authInstance);
+            setDb(firestore || null);
+            setAuth(authInstance || null);
 
             const unsubscribe = window.firebase.onAuthStateChanged(authInstance, async (user) => {
                 if (user) {
@@ -2305,7 +2315,7 @@ const AnimalReadingApp = () => {
         if (isAuthReady && appView === 'loading') {
             const cachedPlayers = getCachedPlayerProfiles();
             
-            if (!userId || !auth.currentUser || !profile.userName) {
+            if (!userId || !auth || !auth.currentUser || !profile.userName) {
                 // If user is anon or new, go to setup screen
                  setAppView('setup');
             } else if (!userApiKey && !profile.geminiApiKey) {
