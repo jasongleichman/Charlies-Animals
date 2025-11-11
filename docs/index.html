@@ -6,20 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Charlie's Animal Words</title>
 
-  {/*  Tailwind  */}
+  <!--  Tailwind  -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  {/*  React 18 UMD  */}
+  <!--  React 18 UMD  -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 
-  {/*  Lucide UMD (global 'lucide')  */}
+  <!--  Lucide UMD (global 'lucide')  -->
   <script src="https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js" crossorigin></script>
 
-  {/*  Babel for in-browser JSX  */}
+  <!--  Babel for in-browser JSX  -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  {/*  Firebase SDK via ES Modules  */}
+  <!--  Firebase SDK via ES Modules  -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -57,12 +57,63 @@
 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <style>
+    /* iPadOS "no-scroll" viewport scaling
+       We render the app at a virtual 1024x768 and scale to fit current viewport.
+       This keeps everything visible without vertical scroll in landscape. */
+
+    :root{
+      --app-base-w: 1024;
+      --app-base-h: 768;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    .viewport-shell{
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+    }
+    .viewport-shell > #root{
+      width: calc(var(--app-base-w) * 1px);
+      height: calc(var(--app-base-h) * 1px);
+      transform-origin: center center;
+      will-change: transform;
+    }
+
+    /* Tune typography & paddings responsively inside the base canvas */
+    .text-responsive-title{ font-size: clamp(20px, 3.2vw, 38px); }
+    .text-responsive-body{ font-size: clamp(13px, 1.8vw, 18px); }
+    .card-pad{ padding: clamp(16px, 2.2vw, 28px); }
+    .btn-pad{ padding: clamp(10px, 1.8vw, 14px) clamp(14px, 2.2vw, 20px); }
+
+    /* Landscape-specific polish for iPad widths; no scroll needed */
+    @media (orientation: landscape){
+      body{ overflow: hidden; }
+    }
+  </style>
+
 </head>
 <body>
-  <div id="root"></div>
+  <div id="viewport-root" class="viewport-shell"><div id="root"></div></div>
 
-  {/*  Your app code (single Babel block ONLY)  */}
-  <script type="text/babel">
+  <!--  Your app code (single Babel block ONLY)  -->
+  
+  <script>
+    // GH Pages / offline shim: let the app run without Firebase configured yet.
+    window.appInstance = window.appInstance || {}; // truthy placeholder so guards pass
+    window.firebase = window.firebase || {};       // avoid undefined errors
+  </script>
+
+<style>
+  /* Landscape tweaks */
+  @media (orientation: landscape) and (max-height: 430px) {
+    body { overflow:auto; }
+  }
+</style>
+<script type="text/babel">
     // --- START OF APP CODE ---
     // Note: Global Firebase references must use 'window.firebase.' where needed.
 
@@ -109,6 +160,25 @@ function collectImageUrlsFromDatabase(db){
   return Array.from(new Set(urls));
 }
 // Precache on first run if we can find images
+
+
+// Aggressive image preloader used by caching screen
+async function __precacheImageList(urls, onProgress) {
+  const total = urls.length || 0;
+  let done = 0;
+  const cacheName = 'animal-words-precache-v5';
+  let cache = null;
+  try { cache = await caches.open(cacheName); } catch (e) {}
+  for (const u of urls) {
+    try {
+      const req = new Request(u, { mode:'cors', cache:'reload' });
+      const res = await fetch(req);
+      if (res && res.ok && cache) await cache.put(req, res.clone());
+    } catch (e) { /* ignore individual fails */ }
+    done++;
+    try { onProgress && onProgress(Math.round(done * 100 / total)); } catch(e){}
+  }
+}
 window.__precacheKnownImages = () => {
   try {
     const urls = collectImageUrlsFromDatabase(typeof ANIMAL_DATABASE !== 'undefined' ? ANIMAL_DATABASE : []);
@@ -1870,37 +1940,33 @@ const useAppState = () => {
     // --- Auth/Profile Setup Handlers ---
 
     const saveUserNameProfile = useCallback(async (name) => {
-    try {
-        // Ensure we have a uid even when Firebase isn't configured
-        let uid = userId;
-        if (!uid) {
-            try {
-                uid = localStorage.getItem('local_uid') || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
-            } catch (e) {
-                uid = String(Date.now());
-            }
-            setUserId(uid);
-            try { localStorage.setItem('local_uid', uid); } catch (e) {}
-        }
-
-        const newProfile = { ...profile, userName: name };
-
-        // Save locally for "existing player" pick-up
-        savePlayerName(uid, name);
-
-        // Mirror to Firestore if available
-        if (db) {
-            await window.firebase.setDoc(getUserProfileDocRef(db, uid), newProfile, { merge: true });
-        }
-
-        setProfile(newProfile);
-        setUserName(name);
-        return true;
-    } catch (error) {
-        console.error("Error saving username:", error);
-        setAuthError("Failed to save name. Please try again.");
-        return false;
+  try {
+    // Ensure we have a uid even when Firebase isn't configured
+    let uid = userId;
+    if (!uid) {
+      try {
+        uid = localStorage.getItem('local_uid') || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+      } catch (e) {
+        uid = String(Date.now());
+      }
+      setUserId(uid);
+      try { localStorage.setItem('local_uid', uid); } catch (e) {}
     }
+
+    const newProfile = { ...profile, userName: name };
+    // Persist locally so 'existing player' works even offline
+    savePlayerName(uid, name);
+    if (db) {
+      await window.firebase.setDoc(getUserProfileDocRef(db, uid), newProfile, { merge: true });
+    }
+    setProfile(newProfile);
+    setUserName(name);
+    return true;
+  } catch (error) {
+    console.error('Error saving username:', error);
+    setAuthError('Failed to save name. Please try again.');
+    return false;
+  }
 }, [db, userId, profile, setProfile, setUserName, setAuthError, setUserId]);
 
 
@@ -3281,6 +3347,27 @@ root.render(<AnimalReadingApp />);
 window.__kickPrecacheOnce = true;
 window.addEventListener('load', ()=>{ try { window.__precacheKnownImages?.(); } catch(e){} });
 </script>
+
+
+  <script>
+    (function(){
+      const BASE_W = 1024, BASE_H = 768;
+      const shell = document.getElementById('viewport-root');
+      const root = document.getElementById('root');
+      function safe(n){ return Math.max(1, Math.floor(n)); }
+      function resize(){
+        if(!shell || !root) return;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const scale = Math.min(w/BASE_W, h/BASE_H);
+        root.style.transform = 'scale(' + scale + ')';
+      }
+      window.addEventListener('resize', resize);
+      window.addEventListener('orientationchange', ()=>setTimeout(resize, 50));
+      window.addEventListener('load', resize);
+      resize();
+    })();
+  </script>
 
 </body>
 </html>
