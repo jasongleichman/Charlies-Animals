@@ -6,20 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Charlie's Animal Words</title>
 
-  <!--  Tailwind  -->
+  {/*  Tailwind  */}
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!--  React 18 UMD  -->
+  {/*  React 18 UMD  */}
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 
-  <!--  Lucide UMD (global 'lucide')  -->
+  {/*  Lucide UMD (global 'lucide')  */}
   <script src="https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js" crossorigin></script>
 
-  <!--  Babel for in-browser JSX  -->
+  {/*  Babel for in-browser JSX  */}
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!--  Firebase SDK via ES Modules  -->
+  {/*  Firebase SDK via ES Modules  */}
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -61,14 +61,8 @@
 <body>
   <div id="root"></div>
 
-  <!--  Your app code (single Babel block ONLY)  -->
-  
-  <script>
-    // Firebase-less shim so app can proceed on GitHub Pages before API key is entered
-    window.appInstance = window.appInstance || {}; // truthy placeholder
-    window.firebase = window.firebase || {};       // avoid undefined errors
-  </script>
-<script type="text/babel">
+  {/*  Your app code (single Babel block ONLY)  */}
+  <script type="text/babel">
     // --- START OF APP CODE ---
     // Note: Global Firebase references must use 'window.firebase.' where needed.
 
@@ -1789,7 +1783,7 @@ const useAppState = () => {
     // --- Core Firebase Initialization Effect ---
     useEffect(() => {
         if (typeof window.appInstance === 'undefined') {
-             console.warn("Firebase not configured yet; continuing without it.");
+             console.warn("Firebase app instance not initialized in the global scope.");
              setIsAuthReady(true);
              setApiError("Firebase setup missing from index.html.");
              return;
@@ -1819,6 +1813,12 @@ const useAppState = () => {
             console.error("Firebase Initialization Error:", e);
             setIsAuthReady(true);
             setApiError("Firebase initialization failed.");
+            try {
+                const __local_uid = localStorage.getItem('local_uid') || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+                localStorage.setItem('local_uid', __local_uid);
+                if (!userId) setUserId(__local_uid);
+            } catch (e) { }
+    
         }
     }, []); // Empty dependency array ensures this runs once
 
@@ -1870,20 +1870,38 @@ const useAppState = () => {
     // --- Auth/Profile Setup Handlers ---
 
     const saveUserNameProfile = useCallback(async (name) => {
-        if (!db || !userId) return false;
-        try {
-            const newProfile = { ...profile, userName: name };
-            await window.firebase.setDoc(getUserProfileDocRef(db, userId), newProfile, { merge: true });
-            setProfile(newProfile);
-            setUserName(name);
-            savePlayerName(userId, name); // Cache locally
-            return true;
-        } catch (error) {
-            console.error("Error saving username:", error);
-            setAuthError("Failed to save name. Please try again.");
-            return false;
+    try {
+        // Ensure we have a uid even when Firebase isn't configured
+        let uid = userId;
+        if (!uid) {
+            try {
+                uid = localStorage.getItem('local_uid') || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+            } catch (e) {
+                uid = String(Date.now());
+            }
+            setUserId(uid);
+            try { localStorage.setItem('local_uid', uid); } catch (e) {}
         }
-    }, [db, userId, profile, setProfile, setUserName, setAuthError]);
+
+        const newProfile = { ...profile, userName: name };
+
+        // Save locally for "existing player" pick-up
+        savePlayerName(uid, name);
+
+        // Mirror to Firestore if available
+        if (db) {
+            await window.firebase.setDoc(getUserProfileDocRef(db, uid), newProfile, { merge: true });
+        }
+
+        setProfile(newProfile);
+        setUserName(name);
+        return true;
+    } catch (error) {
+        console.error("Error saving username:", error);
+        setAuthError("Failed to save name. Please try again.");
+        return false;
+    }
+}, [db, userId, profile, setProfile, setUserName, setAuthError, setUserId]);
 
 
     const handleSignOut = async (fromSettings = false) => {
