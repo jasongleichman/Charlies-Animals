@@ -5,12 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Charlie's Animal Words</title>
 
-  <!-- iOS PWA / Standalone (launch without Safari UI when added to Home Screen) -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Animal Words" />
-
-
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -53,6 +47,45 @@
       overflow: hidden;
     }
   </style>
+
+<!-- iOS standalone / PWA basics -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Animal Words">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<!-- Inline manifest via Blob so we can stay single-file on GitHub Pages -->
+<script>
+  (function(){
+    const manifest = {
+      "name": "Charlie's Animal Words",
+      "short_name": "AnimalWords",
+      "display": "standalone",
+      "start_url": "./",
+      "background_color": "#ffffff",
+      "theme_color": "#10b981",
+      "icons": [
+        {"src":"icons/icon-192.png","sizes":"192x192","type":"image/png"},
+        {"src":"icons/icon-512.png","sizes":"512x512","type":"image/png"}
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+    const url = URL.createObjectURL(blob);
+    let link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = url;
+    document.head.appendChild(link);
+  })();
+</script>
+<!-- Register a tiny service worker for offline caching (images/audio) -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(console.warn);
+    });
+  }
+</script>
+
 </head>
 <body>
   <div id="root"></div>
@@ -64,45 +97,11 @@
 
     const { useState, useEffect, useCallback, useRef } = React;
     // lucide is now defined by the UMD script above
-    
-    /* ---------------- Lucide wrappers (UMD -> React-friendly) ---------------- */
-    const LucideIcon = ({ name, className = "" }) => {
-      const ref = React.useRef(null);
-      React.useEffect(() => {
-        if (window.lucide && window.lucide.createIcons) {
-          window.lucide.createIcons();
-        }
-      });
-      return <i ref={ref} data-lucide={name} className={className} />;
-    };
-    const Volume2       = (p) => <LucideIcon name="volume-2" {...p} />;
-    const Star          = (p) => <LucideIcon name="star" {...p} />;
-    const Trophy        = (p) => <LucideIcon name="trophy" {...p} />;
-    const ArrowRight    = (p) => <LucideIcon name="arrow-right" {...p} />;
-    const Loader2       = (p) => <LucideIcon name="loader-2" {...p} />;
-    const XCircle       = (p) => <LucideIcon name="x-circle" {...p} />;
-    const KeyRound      = (p) => <LucideIcon name="key-round" {...p} />;
-    const Play          = (p) => <LucideIcon name="play" {...p} />;
-    const Home          = (p) => <LucideIcon name="home" {...p} />;
-    const Award         = (p) => <LucideIcon name="award" {...p} />;
-    const BookOpen      = (p) => <LucideIcon name="book-open" {...p} />;
-    const MessageSquare = (p) => <LucideIcon name="message-square" {...p} />;
-    const Database      = (p) => <LucideIcon name="database" {...p} />;
-    const CheckCircle   = (p) => <LucideIcon name="check-circle" {...p} />;
-    const Users         = (p) => <LucideIcon name="users" {...p} />;
-    const Image         = (p) => <LucideIcon name="image" {...p} />;
-    const Zap           = (p) => <LucideIcon name="zap" {...p} />;
-    const ChevronRight  = (p) => <LucideIcon name="chevron-right" {...p} />;
-    const Lock          = (p) => <LucideIcon name="lock" {...p} />;
-    const Clock         = (p) => <LucideIcon name="clock" {...p} />;
-    const Video         = (p) => <LucideIcon name="video" {...p} />;
-    const Menu          = (p) => <LucideIcon name="menu" {...p} />;
-    const Settings      = (p) => <LucideIcon name="settings" {...p} />;
-    const LogOut        = (p) => <LucideIcon name="log-out" {...p} />;
-    const X             = (p) => <LucideIcon name="x" {...p} />;
-    const ChevronLeft   = (p) => <LucideIcon name="chevron-left" {...p} />;
-    /* ------------------------------------------------------------------------ */
-    
+    const {
+      Volume2, Star, Trophy, ArrowRight, Loader2, XCircle, KeyRound, Play, Home, Award,
+      BookOpen, MessageSquare, Database, CheckCircle, Users, Image, Zap, ChevronRight,
+      Lock, Clock, Video, Menu, Settings, LogOut, X, ChevronLeft
+    } = lucide;
 
 
         // --- DATABASE ---
@@ -1622,6 +1621,39 @@ const useAppState = () => {
 
     // --- Core Utility: Speak (Real-time API Call, prioritizes Cache) ---
 
+// --- TTS helpers: prefer a clear male 'science teacher' English voice when using browser TTS ---
+function pickPreferredVoice() {
+  const synth = window.speechSynthesis;
+  const preferNames = ['Alex','Fred','Daniel','Oliver','Matthew','Aaron','US English Male','Google US English','Google UK English Male'];
+  const voices = synth.getVoices();
+  for (const name of preferNames) {
+    const v = voices.find(v => v.name.includes(name));
+    if (v) return v;
+  }
+  // Otherwise prefer en-* voices
+  const enVoices = voices.filter(v => /^en[-_]/i.test(v.lang));
+  return enVoices[0] || voices[0] || null;
+}
+function speakWithBrowserVoice(text) {
+  const synth = window.speechSynthesis;
+  const utter = new SpeechSynthesisUtterance(text);
+  const trySet = () => {
+    const v = pickPreferredVoice();
+    if (v) utter.voice = v;
+    utter.rate = 0.95; // slower, articulate
+    utter.pitch = 0.9;
+    synth.speak(utter);
+  };
+  if (synth.getVoices().length === 0) {
+    // Voices load async on some iOS; wait for them
+    synth.onvoiceschanged = () => { trySet(); };
+  } else {
+    trySet();
+  }
+  return utter;
+}
+
+
     /** High-Quality TTS Speak Function using Cloud TTS API (Real-time) */
     const speak = useCallback(async (text) => {
         if (!text) return;
@@ -1657,17 +1689,15 @@ const useAppState = () => {
         
         // 2. If caching was skipped, use browser voice immediately
         if (cacheStatus === 3) {
-            const utterance = new SpeechSynthesisUtterance(text);
+            const utterance = speakWithBrowserVoice(text);
             utterance.onend = () => setIsSpeaking(false);
-            window.speechSynthesis.speak(utterance);
             return;
         }
 
         // 3. Fallback to instant browser voice if no key is present or on API failure
         if (!key) {
-            const utterance = new SpeechSynthesisUtterance(text);
+            const utterance = speakWithBrowserVoice(text);
             utterance.onend = () => setIsSpeaking(false);
-            window.speechSynthesis.speak(utterance);
             return;
         }
         
@@ -1724,9 +1754,8 @@ const useAppState = () => {
             setApiError(`Voice API Failed: ${error.message}. Using fallback browser voice.`);
             
             // Final fallback to browser TTS
-            const utterance = new SpeechSynthesisUtterance(text);
+            const utterance = speakWithBrowserVoice(text);
             utterance.onend = () => setIsSpeaking(false);
-            window.speechSynthesis.speak(utterance);
         } finally {
             // If the audio successfully played (either API or cache), isSpeaking is set to false in onended/onend
         }
@@ -1816,22 +1845,14 @@ const useAppState = () => {
 
     // --- Auth/Profile Setup Handlers ---
 
-    
-const saveUserNameProfile = useCallback(async (name) => {
+    const saveUserNameProfile = useCallback(async (name) => {
+        if (!db || !userId) return false;
         try {
-            // Always save locally
-            const localId = userId || localStorage.getItem('localUserId') || (window.crypto?.randomUUID?.() || `local-${Date.now()}`);
-            localStorage.setItem('localUserId', localId);
-            savePlayerName(localId, name);
-            setUserId(localId);
             const newProfile = { ...profile, userName: name };
+            await window.firebase.setDoc(getUserProfileDocRef(db, userId), newProfile, { merge: true });
             setProfile(newProfile);
             setUserName(name);
-
-            // If Firebase is available, mirror to Firestore
-            if (db) {
-                await window.firebase.setDoc(getUserProfileDocRef(db, localId), newProfile, { merge: true });
-            }
+            savePlayerName(userId, name); // Cache locally
             return true;
         } catch (error) {
             console.error("Error saving username:", error);
@@ -1839,7 +1860,6 @@ const saveUserNameProfile = useCallback(async (name) => {
             return false;
         }
     }, [db, userId, profile, setProfile, setUserName, setAuthError]);
-
 
 
     const handleSignOut = async (fromSettings = false) => {
@@ -2612,7 +2632,7 @@ const AnimalReadingApp = () => {
 
                         <button
                             type="submit"
-                            disabled={isSigningIn || !userName.trim()}
+                            disabled={isSigningIn || !db || !userName.trim()}
                             className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-xl font-bold py-3 px-8 rounded-xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] disabled:bg-gray-300 shadow-md shadow-emerald-500/20"
                         >
                             {isSigningIn ? (
