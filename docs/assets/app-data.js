@@ -3,7 +3,7 @@
 // This file is loaded before the main app script in index.html.
 
 // --- ANIMAL DATABASE ---
-const ANIMAL_DATABASE = [
+window.ANIMAL_DATABASE = [
   {
     name: 'Fennec Fox',
     facts: [
@@ -1032,7 +1032,7 @@ const ANIMAL_DATABASE = [
 ];
 
 // --- SIGHT WORD DATABASE (100 words and custom options, homophones removed) ---
-const sightWordsData = [
+window.sightWordsData = [
     { word: 'the', options: ['the', 'this', 'that'], correct: 'the' },
     { word: 'of', options: ['of', 'off', 'for'], correct: 'of' },
     { word: 'and', options: ['and', 'any', 'can'], correct: 'and' },
@@ -1136,7 +1136,7 @@ const sightWordsData = [
 ];
 
 // --- SENTENCES DATABASE (50 total sentences) ---
-const sentencesData = [
+window.sentencesData = [
   { sentence: 'The Fennec Fox has big ears.', options: ['The Fennec Fox has big ears.', 'The fox can fly.', 'The bird can run.'], correct: 'The Fennec Fox has big ears.' },
   { sentence: 'I see a small axolotl.', options: ['I see a small axolotl.', 'I see a big shark.', 'I see a fast cheetah.'], correct: 'I see a small axolotl.' },
   { sentence: 'The pangolin can roll up.', options: ['The pangolin can swim.', 'The pangolin can roll up.', 'The pangolin can fly.'], correct: 'The pangolin can roll up.' },
@@ -1190,7 +1190,7 @@ const sentencesData = [
 ];
 
 // --- VIDEO DATABASE (Simple placeholders for embedding) ---
-const VIDEO_DATABASE = [
+window.VIDEO_DATABASE = [
     { title: "Animal Fact Minute 1: Fennec Foxes", url: "https://www.youtube.com/embed/dQw4w9WgXcQ?controls=0" }, 
     { title: "Animal Fact Minute 2: Axolotl Regeneration", url: "https://www.youtube.com/embed/5T6v3i9c2-I?controls=0" }, 
     { title: "Animal Fact Minute 3: Goblin Shark Jaws", url: "https://www.youtube.com/embed/A3X4wYf0gW0?controls=0" }, 
