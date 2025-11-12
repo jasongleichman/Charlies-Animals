@@ -1,9 +1,7 @@
-// ESM script: builds a manifest from images that already exist in docs/assets/images/
-// It does NOT download images; it only maps what's present on disk.
-
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import vm from "vm"; // <-- NEW: Import vm for parsing JS data
 
 // --------- helpers ----------
 const __filename = fileURLToPath(import.meta.url);
@@ -30,7 +28,6 @@ function parseArgs() {
 async function main() {
   const args = parseArgs();
   const repoRoot = path.resolve(__dirname, ".."); // scripts/.. -> repo root
-  const dbPath = path.resolve(repoRoot, args.db);
   const outDir = path.resolve(repoRoot, args.out);
   const imagesDir = path.join(outDir, "images");
 
@@ -38,17 +35,34 @@ async function main() {
   fs.mkdirSync(outDir, { recursive: true });
   fs.mkdirSync(imagesDir, { recursive: true });
 
-  // read index.html and pull animal names
-  const html = fs.readFileSync(dbPath, "utf-8");
-  // matches: name: 'Fennec Fox'  OR name: "Fennec Fox"
-  const re = /name\s*:\s*['"]([^'"]+)['"]/g;
-  const names = new Set();
-  let m;
-  while ((m = re.exec(html))) {
-    names.add(m[1].trim());
+  // --- FIX 1: Point to the new data file location ---
+  const dataPath = path.join(outDir, "app-data.js");
+  if (!fs.existsSync(dataPath)) {
+      throw new Error(`Data file not found at expected path: ${dataPath}`);
   }
+
+  // --- FIX 2: Read and parse the JS file to get animal names ---
+  const jsContent = fs.readFileSync(dataPath, "utf-8");
+  
+  // Safely extract the ANIMAL_DATABASE array using regex
+  const animalMatch = jsContent.match(/const\s+ANIMAL_DATABASE\s*=\s*(\[[\s\S]*?\]);/);
+  if (!animalMatch) {
+      throw new Error("Could not find ANIMAL_DATABASE in docs/assets/app-data.js");
+  }
+  
+  const ctx = {}; 
+  vm.createContext(ctx);
+  // Run the extracted array string in context to get the object
+  const animals = vm.runInContext("(" + animalMatch[1] + ")", ctx);
+
+  const names = new Set();
+  animals.forEach(a => {
+      if (a.name) names.add(a.name.trim());
+  });
+  
   const all = Array.from(names);
-  console.log(`Found ${all.length} animals in ${args.db}`);
+  console.log(`Found ${all.length} animals in docs/assets/app-data.js`);
+  // --- END FIX ---
 
   // build the images map for files that already exist
   const imagesMap = {};
