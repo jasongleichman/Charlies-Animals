@@ -472,8 +472,6 @@ function AW_WelcomeScreen({ onStart }){
         .replace(/(^-|-$)/g, "");     // Trim leading/trailing dashes
 
 // --- PLAYER PROFILE CACHING UTILS ---
-// The functionality of these helpers has been merged into the 
-// awLoadProfiles, awSaveProfileData, and awLoadProfileByName functions above.
 const PLAYER_PROFILES_KEY = 'cached_player_profiles';
 const savePlayerName = (userId, name) => {};
 const getCachedPlayerProfiles = () => [];
@@ -483,12 +481,11 @@ const removePlayerProfile = (userId) => {};
 // --- CUSTOM HOOK: useAppState (LOCAL ONLY) ---
 
 const useAppState = () => {
-    // --- FIX: Removed firebase-specific state ---
     const [isAuthReady, setIsAuthReady] = useState(false);
     
     // --- Profile State (Loaded from localStorage) ---
     const [profile, setProfile] = useState({
-        name: '', // --- FIX: Renamed userName to name for consistency ---
+        name: '', 
         avatar: '🦊',
         highScore: 0,
         streak: 0,
@@ -500,10 +497,8 @@ const useAppState = () => {
 
     // --- Caching/API State ---
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [isLoading, setIsLoading] = useState(false); // --- FIX: Renamed isGeneratingImage to generic 'isLoading' ---
+    const [isLoading, setIsLoading] = useState(false); 
     const [apiError, setApiError] = useState(null);
-    
-    // --- FIX: Removed setup-specific state, as it's handled by AW_WelcomeScreen ---
     
     // --- Local Persistence ---
     const saveUserProfile = useCallback((profileToSave) => {
@@ -518,7 +513,6 @@ const useAppState = () => {
     
     const loadUserProfile = useCallback((profileToLoad) => {
         try {
-            // --- FIX: Simplified load logic. The profile is passed in from AW_WelcomeScreen ---
             const defaultProfile = {
                 name: 'Guest',
                 avatar: '🦊',
@@ -530,7 +524,6 @@ const useAppState = () => {
                 factIndices: {}
             };
             
-            // Merge loaded profile with defaults to ensure all keys exist
             setProfile({ ...defaultProfile, ...profileToLoad });
             
         } catch (error) {
@@ -541,7 +534,7 @@ const useAppState = () => {
 
 
     /**
-     * [NEW] Plays a pre-generated local audio file.
+     * Plays a pre-generated local audio file.
      * Falls back to the browser's built-in voice if the file is missing.
      */
     const speak = useCallback(async (text) => {
@@ -564,7 +557,6 @@ const useAppState = () => {
         }
 
         // 2. Try to play the local .mp3 file
-        // --- FIX: All TTS files are in ./assets/tts/ ---
         const audioUrl = `./assets/tts/${slug}.mp3`;
         const audio = new Audio(audioUrl);
 
@@ -581,20 +573,17 @@ const useAppState = () => {
         audio.onerror = () => {
             // 3. FALLBACK: If file is missing (404) or fails to load
             console.warn(`Audio file not found: ${audioUrl}. Using browser fallback.`);
-            // --- FIX: Don't show a scary error for this, just warn in console ---
-            // setApiError(`Missing audio file for: "${text.substring(0, 30)}..."`);
             
             // Use the browser's built-in voice
             window.__speakLocal(text).finally(() => setIsSpeaking(false));
         };
 
-    }, [setIsSpeaking, setApiError]); // Dependencies
+    }, [setIsSpeaking, setApiError]); 
 
 
     // --- Core Initialization Effect [LOCAL-ONLY] ---
     useEffect(() => {
         try {
-            // --- FIX: Try to load the saved player name ---
             const savedName = awGetSavedName();
             if (savedName) {
                 const loadedProfile = awLoadProfileByName(savedName);
@@ -612,25 +601,19 @@ const useAppState = () => {
         // --- NEW: Kick off image preloading for performance ---
         awPreloadImages();
 
-    }, []); // Empty dependency array ensures this runs once
+    }, []); 
 
-    
-    // --- FIX: Removed redundant/unused auth functions ---
     
     const handleSignOut = async () => {
         awClearActiveProfile();
         // Clear current state
         setProfile({ name: '', avatar: '🦊', highScore: 0, streak: 0, collectedAnimals: [], rewardsEarned: 0, highScores: [], factIndices: {} });
-        
-        // --- FIX: Go back to 'setup' view (the welcome screen) ---
-        // (This will be handled by the main app component)
     };
 
     // --- NEW: Function to get animal data (inc. image) for modals ---
     const getAnimalDataForModal = useCallback(async (animalName) => {
         setIsLoading(true);
         
-        // FIX: Ensure global data object is used
         const animal = window.ANIMAL_DATABASE ? window.ANIMAL_DATABASE.find(a => a.name === animalName) : null;
         if (!animal) {
              console.error("Animal not found:", animalName);
@@ -658,7 +641,6 @@ const useAppState = () => {
     const generateRewardAnimal = useCallback(async (isVideoReward = false, currentAppView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal) => {
         setIsLoading(true);
         
-        // FIX: Ensure global data object is used
         const animalDatabase = window.ANIMAL_DATABASE || [];
 
         const uncollected = animalDatabase.filter(
@@ -703,8 +685,8 @@ const useAppState = () => {
         profile, setProfile,
         isSpeaking, isLoading, apiError, setApiError,
         saveUserProfile, handleSignOut, speak, 
-        generateRewardAnimal, getAnimalDataForModal, // --- FIX: Export new/renamed functions ---
-        loadUserProfile // --- NEW: Export loadUserProfile ---
+        generateRewardAnimal, getAnimalDataForModal, 
+        loadUserProfile 
     };
 }; // --- End of useAppState hook ---
 
@@ -733,7 +715,7 @@ const Modal = ({ title, children, onClose }) => (
 
 // Fact Modal Component (FIXED: Template literals, Lock logic)
 const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking }) => {
-    // --- FIX: Default to the newest earned fact, or fact 0 if no facts earned yet (for gallery view) ---
+    // Default to the newest earned fact, or fact 0 if no facts earned yet (for gallery view)
     const [factIndex, setFactIndex] = useState(factsEarned > 0 ? factsEarned - 1 : 0);
     const totalFactsCount = animal.facts.length;
 
@@ -749,7 +731,7 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
             <div className="space-y-4">
                 <div className="text-center">
                     <h3 className="text-xl font-bold text-gray-800">{animal.name}</h3>
-                    {/* FIX 1: Correct template literal formatting */}
+                    {/* FIX 1: Corrected template literal formatting */}
                     <p className="text-sm text-gray-500">Facts Unlocked: <span className="font-semibold text-emerald-600">{`${factsEarned} / ${totalFactsCount}`}</span></p>
                 </div>
 
@@ -764,7 +746,7 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
 
                 <h4 className="text-lg font-semibold text-gray-700 mt-4 border-t pt-4">Fact Details:</h4>
 
-                {/* FIX 2: Fact list is now scrollable on its own, and shows lock for unearned */}
+                {/* FIX 2: Fact list shows lock for unearned */}
                 <div className="space-y-2 max-h-60 overflow-y-auto p-1">
                     {animal.facts.map((fact, index) => {
                         const isUnlocked = index < factsEarned;
@@ -774,7 +756,7 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
                         return (
                             <div 
                                 key={index} 
-                                // FIX 2: OnClick is only enabled for unlocked facts
+                                // OnClick is only enabled for unlocked facts
                                 className={`p-3 rounded-lg flex justify-between items-center transition-all ${
                                     isUnlocked ? 'hover:bg-emerald-50 cursor-pointer' : 'bg-gray-100 text-gray-400 opacity-80'
                                 } ${isCurrent && isUnlocked ? 'border-2 border-emerald-500 shadow-md bg-emerald-50' : 'border border-transparent'}`}
@@ -862,7 +844,9 @@ const VideoRewardModal = ({ rewardTitle, onClose }) => {
                 
                 <button 
                     onClick={onClose} 
-                    className="w-full bg-emerald-500 text-white font-semibold py-3 rounded-xl hover:bg-emerald-600 transition-colors mt-4"
+                    className={`w-full bg-emerald-500 text-white font-semibold py-3 rounded-xl hover:bg-emerald-600 transition-colors mt-4 
+                    ${!actualVideo ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!actualVideo}
                 >
                     Continue to Animal Fact <ArrowRight className="w-6 h-6 inline ml-2" />
                 </button>
@@ -906,7 +890,7 @@ const RewardsModal = ({ profile, onClose }) => {
                                 key={index}
                                 className={`bg-white rounded-xl overflow-hidden shadow-md transition-all ${isUnlocked ? 'border-2 border-emerald-500' : 'border-2 border-gray-300 opacity-70'}`}
                             >
-                                <div className="relative aspect-video">
+                                <div className="relative w-full aspect-video">
                                     {isUnlocked ? (
                                         <iframe
                                             className="w-full h-full"
@@ -931,43 +915,6 @@ const RewardsModal = ({ profile, onClose }) => {
                             </div>
                         );
                     })}
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-
-// Stats Modal Component
-const StatsModal = ({ profile, onClose }) => {
-    const sortedScores = profile.highScores 
-        ? [...profile.highScores].sort((a, b) => b.score - a.score) 
-        : [];
-    
-    return (
-        <Modal title="High Score History" onClose={onClose}>
-            <div className="space-y-4">
-                <p className="text-sm text-gray-500 border-b pb-2">All scores logged for player: <span className="font-semibold text-emerald-600">{profile.name}</span></p>
-                <div className="max-h-80 overflow-y-auto space-y-3">
-                    {sortedScores.length > 0 ? (
-                        sortedScores.map((s, index) => (
-                            <div key={index} className="bg-gray-50 p-4 rounded-xl flex justify-between items-center shadow-sm">
-                                <div className="flex items-center space-x-3">
-                                    <Trophy className={`w-6 h-6 ${index === 0 ? 'text-emerald-500' : 'text-gray-400'}`} />
-                                    <div>
-                                        <p className="text-lg font-bold text-gray-800">Score: {s.score}</p>
-                                        <p className="text-xs text-gray-500">Player: {s.userName}</p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-sm text-gray-600 font-semibold">{s.mode === 'words' ? 'Words Quiz' : 'Sentence Quiz'}</p>
-                                    <p className="text-xs text-gray-400">{new Date(s.date).toLocaleDateString()}</p>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-center text-gray-500 py-4">No scores logged yet. Start playing!</p>
-                    )}
                 </div>
             </div>
         </Modal>
@@ -1003,6 +950,15 @@ const AnimalReadingApp = () => {
     const [showStatsModal, setShowStatsModal] = useState(false);
     const [showRewardsModal, setShowRewardsModal] = useState(false);
 
+    // FIX (Navigation Bug): Centralized navigation function to ensure modals are cleared on view change
+    const navigateTo = useCallback((newView, clearModals = true) => {
+        if (clearModals) {
+            setShowStatsModal(false);
+            setShowRewardsModal(false);
+        }
+        setAppView(newView);
+    }, [setAppView, setShowStatsModal, setShowRewardsModal]);
+
 
     // --- Game Data Initializer & Shuffling ---
     const [shuffledWords, setShuffledWords] = useState([]);
@@ -1033,9 +989,9 @@ const AnimalReadingApp = () => {
         if (isAuthReady && appView === 'loading') {
             // FIX: Check profile.name instead of profile.userName
             if (!profile.name) {
-                 setAppView('setup');
+                 navigateTo('setup', false);
             } else {
-                 setAppView('home');
+                 navigateTo('home', false);
             }
         }
     }, [isAuthReady, appView, profile.name]);
@@ -1044,13 +1000,13 @@ const AnimalReadingApp = () => {
     // FIX: This handler is now passed to AW_WelcomeScreen
     const handleStartPlaying = (loadedProfile) => {
         loadUserProfile(loadedProfile);
-        setAppView('home');
+        navigateTo('home');
     };
     
     // FIX: This handler is now passed to the Sidebar
     const handleSignOutAndReset = () => {
         handleSignOut();
-        setAppView('setup'); // Go back to the login screen
+        navigateTo('setup', true); // Clear modals and go to setup
     };
 
     
@@ -1076,7 +1032,7 @@ const AnimalReadingApp = () => {
             setShuffledSentences(window.sentencesData.map(shuffleOptions).sort(() => Math.random() - 0.5));
         }
 
-        setAppView('game');
+        navigateTo('game', true);
     };
     
     const resumeGame = () => {
@@ -1086,7 +1042,7 @@ const AnimalReadingApp = () => {
         setCurrentIndex(pausedGame.index);
         setScore(pausedGame.score);
         setPausedGame(null);
-        setAppView('game');
+        navigateTo('game', true);
     };
     
     const pauseGame = () => {
@@ -1095,7 +1051,7 @@ const AnimalReadingApp = () => {
             index: currentIndex,
             score: score,
         });
-        setAppView('home');
+        navigateTo('home', true);
     };
 
     const logScoreAndEndGame = async (finalScore, mode) => {
@@ -1117,7 +1073,7 @@ const AnimalReadingApp = () => {
 
         setProfile(newProfile);
         saveUserProfile(newProfile); // Save to localStorage
-        setAppView('complete');
+        navigateTo('complete', true);
         setPausedGame(null); // Clear pause on game over
     };
 
@@ -1169,6 +1125,7 @@ const AnimalReadingApp = () => {
         setSelectedAnswer(null);
         setShowRewardModal(false);
         setShowVideoModal(false);
+        setAnimalData(null); // Clear animal data for next round
         setApiError(null);
 
         // Update profile with newly collected animal and fact count
@@ -1199,7 +1156,6 @@ const AnimalReadingApp = () => {
 
         if (currentIndex < currentList.length - 1) {
             setCurrentIndex(currentIndex + 1);
-            setAnimalData(null); // Clear animal data for next round
         } else {
             // Round is complete without mistakes! Log max score.
             logScoreAndEndGame(score, gameMode);
@@ -1211,6 +1167,13 @@ const AnimalReadingApp = () => {
     const Sidebar = () => {
         const totalAnimals = window.ANIMAL_DATABASE ? window.ANIMAL_DATABASE.length : 0;
         const collectedCount = (profile.collectedAnimals || []).length;
+
+        // FIX (Navigation Bug): Handlers use the navigateTo function
+        const handleHomeClick = () => navigateTo('home', true);
+        const handleCollectionClick = () => navigateTo('gallery', true);
+        const handleScoresClick = () => setShowStatsModal(true);
+        const handleRewardsClick = () => setShowRewardsModal(true);
+        
         return (
             // FIX: Responsive sidebar for mobile
             <div className="fixed top-0 left-0 h-full w-64 bg-gray-50 shadow-2xl z-40 flex flex-col p-6 border-r border-gray-200 
@@ -1227,17 +1190,16 @@ const AnimalReadingApp = () => {
                 
                 {/* FIX: Horizontal nav for mobile */}
                 <nav className="flex-grow space-y-3 max-lg:flex max-lg:space-y-0 max-lg:space-x-2 max-lg:flex-grow-0">
-                    <SidebarButton icon={Home} label="Home" onClick={() => setAppView('home')} />
+                    <SidebarButton icon={Home} label="Home" onClick={handleHomeClick} />
                     <SidebarButton 
                         icon={Image} 
-                        // FIX 4: Only show "Collection" without count
                         label="Collection" 
                         labelDesktop={`Collection`} 
-                        onClick={() => setAppView('gallery')} 
+                        onClick={handleCollectionClick} 
                     />
-                    <SidebarButton icon={Trophy} label="Scores" labelDesktop="High Scores" onClick={() => setShowStatsModal(true)} />
-                    {/* FIX: Hook up rewards button */}
-                    <SidebarButton icon={Video} label={`Rewards`} labelDesktop={`Rewards (${profile.rewardsEarned || 0})`} onClick={() => setShowRewardsModal(true)} />
+                    <SidebarButton icon={Trophy} label="Scores" labelDesktop="High Scores" onClick={handleScoresClick} />
+                    {/* FIX 1: Correct template literal formatting */}
+                    <SidebarButton icon={Video} label={`Rewards`} labelDesktop={`Rewards (${profile.rewardsEarned || 0})`} onClick={handleRewardsClick} />
                 </nav>
 
                 {/* HIDE ON MOBILE */}
@@ -1279,6 +1241,7 @@ const AnimalReadingApp = () => {
         </div>
     );
 
+    // Updated WelcomeScreen to ensure modals are rendered outside of main view logic
     const WelcomeScreen = () => (
         <MainContainer>
             <div className="w-full max-w-4xl">
@@ -1336,6 +1299,7 @@ const AnimalReadingApp = () => {
                     </button>
                 </div>
             </div>
+            {/* The modals controlled by setShowStatsModal/setShowRewardsModal */}
             {showStatsModal && <StatsModal profile={profile} onClose={() => setShowStatsModal(false)} />}
             {showRewardsModal && <RewardsModal profile={profile} onClose={() => setShowRewardsModal(false)} />}
         </MainContainer>
@@ -1552,7 +1516,7 @@ const AnimalReadingApp = () => {
                 </div>
 
                 <button
-                    onClick={() => setAppView('home')}
+                    onClick={() => navigateTo('home')}
                     className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 text-xl font-bold py-3 rounded-xl flex items-center justify-center gap-3 transition-colors"
                 >
                     <Home className="w-6 h-6" />
@@ -1562,16 +1526,15 @@ const AnimalReadingApp = () => {
         </MainContainer>
     );
     
+    // FIX (Collection Modal): Re-implemented openFactModal to ensure it's async and updates state correctly.
     const GalleryScreen = () => {
-        // State to manage the modal visibility and the data for the currently selected animal
         const [factModalOpen, setFactModalOpen] = useState(false);
         const [currentAnimal, setCurrentAnimal] = useState(null);
 
         // State to hold preloaded image URLs for the main gallery view
         const [imageUrls, setImageUrls] = useState({});
 
-        // --- Core Modal Opening Logic (THE FIX) ---
-        // Must be asynchronous to await the data fetch
+        // --- Core Modal Opening Logic (FIXED) ---
         const openFactModal = useCallback(async (animal) => {
             // 1. Fetch the full, detailed animal data (this is an asynchronous operation)
             const animalWithData = await getAnimalDataForModal(animal.name);
@@ -1581,10 +1544,8 @@ const AnimalReadingApp = () => {
                 // 3. Calculate additional facts earned from profile
                 const factsEarned = (profile.factIndices || {})[animal.name] || 0;
                 
-                // 4. Update the state with the new complete animal data
+                // 4. Update the state with the new complete animal data AND open the modal
                 setCurrentAnimal({ ...animalWithData, factsEarned });
-
-                // 5. Open the modal (this triggers the modal rendering with the new state)
                 setFactModalOpen(true);
             } else {
                 console.error("Failed to load full animal data for modal.");
@@ -1644,7 +1605,6 @@ const AnimalReadingApp = () => {
                                 <div 
                                     key={animal.name} 
                                     className={`bg-white rounded-2xl overflow-hidden shadow-md transition-all ${isCollected ? 'border-2 border-emerald-200 hover:shadow-lg cursor-pointer' : 'border border-gray-200 opacity-60'}`}
-                                    // Call the async function on click, only if collected
                                     onClick={() => isCollected && openFactModal(animal)}
                                 >
                                     <div className="h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -1674,7 +1634,7 @@ const AnimalReadingApp = () => {
                         })}
                     </div>
                 </div>
-                {/* FactModal should only render if open AND data is available */}
+                {/* FactModal renders here, controlled by local state */}
                 {factModalOpen && currentAnimal && (
                 <FactModal 
                     animal={currentAnimal}
