@@ -407,7 +407,7 @@ function AW_WelcomeScreen({ onStart }){
       <div className="welcome-card bg-white/80 backdrop-blur rounded-2xl shadow-xl p-6 sm:p-8 w-full max-w-[720px]">
         <div className="flex items-center justify-between mb-4">
           <h1 className="font-bold text-2xl">Charlie’s Animal Words</h1>
-          {/* --- FIX: Show avatar for the selected/new user --- */}
+          {/* FIX 6: Show avatar for the selected/new user */}
           <span className="text-3xl select-none" aria-label="avatar">{avatar}</span>
         </div>
         
@@ -416,7 +416,7 @@ function AW_WelcomeScreen({ onStart }){
           <button className={"px-3 py-1 rounded-lg text-sm font-semibold "+(tab==='existing'?'bg-emerald-600 text-white':'')} onClick={()=>setTab('existing')} disabled={!profiles.length} title={!profiles.length?"No saved players yet":""}>Existing Player</button>
         </div>
         
-        {/* --- FIX: Use a single form for both tabs --- */}
+        {/* FIX: Use a single form for both tabs */}
         <form onSubmit={handleStart}>
           {tab === 'existing' ? (
             <div className="space-y-4">
@@ -424,7 +424,6 @@ function AW_WelcomeScreen({ onStart }){
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2 max-h-60 overflow-y-auto">
                 {profiles.length === 0 && <div className="text-slate-500">No saved players yet.</div>}
                 {profiles.map((p,i)=>(
-                    {/* FIX 1: Allow users to delete profiles */}
                     <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border transition text-left ${p.name === selectedProfileName ? "border-emerald-500 ring-1 ring-emerald-500" : "hover:border-emerald-400"}`}>
                         <button type="button" onClick={()=>pickExisting(p)} className="flex-grow flex items-center gap-3">
                             <span className="text-2xl">{p.avatar||"🦊"}</span>
@@ -460,9 +459,8 @@ function AW_WelcomeScreen({ onStart }){
             </div>
           )}
           
-          {/* --- FIX: Single "Start" button --- */}
+          {/* FIX: Single "Start" button, with updated style */}
           <div className="flex justify-end mt-6">
-            {/* FIX 1: Update button style to match other green buttons (added shadow) */}
             <button type="submit" disabled={(tab === 'new' && !canStartNew) || (tab === 'existing' && !canStartExisting)}
               className={`rounded-xl px-5 py-3 font-semibold flex items-center gap-2 transition-colors ${
                 ((canStartNew && tab==='new') || (canStartExisting && tab==='existing')) ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-500/30" : "bg-slate-200 text-slate-500 cursor-not-allowed"
@@ -518,10 +516,7 @@ function AW_WelcomeScreen({ onStart }){
         .replace(/(^-|-$)/g, "");     // Trim leading/trailing dashes
 
     // --- FIX 3: Reference data variables from the global scope (loaded from app-data.js) ---
-    // The data variables are now expected to be loaded globally via the <script src="./assets/app-data.js"></script> tag.
-    // They are referenced using window.ANIMAL_DATABASE, etc. within the useEffect/startNewGame functions,
-    // but React components should typically use state or constants defined from globals.
-    // We will define constants here referencing the global scope, relying on the script tag above.
+    // These should now be globally available via the script tag in the head.
     const ANIMAL_DATABASE = window.ANIMAL_DATABASE;
     const sightWordsData = window.sightWordsData;
     const sentencesData = window.sentencesData;
@@ -815,7 +810,7 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
 
                 <h4 className="text-lg font-semibold text-gray-700 mt-4 border-t pt-4">Fact Details:</h4>
 
-                {/* --- FIX: Fact list is now scrollable on its own --- */}
+                {/* FIX: Fact list is now scrollable on its own */}
                 <div className="space-y-2 max-h-60 overflow-y-auto p-1">
                     {animal.facts.map((fact, index) => {
                         const isUnlocked = index < factsEarned;
@@ -827,11 +822,11 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
                                 key={index} 
                                 // FIX 2: OnClick is only enabled for unlocked facts
                                 className={`p-3 rounded-lg flex justify-between items-center transition-all ${
-                                    isUnlocked ? 'hover:bg-emerald-50 cursor-pointer' : 'bg-gray-100' // Changed opacity to make it look cleaner
+                                    isUnlocked ? 'hover:bg-emerald-50 cursor-pointer' : 'bg-gray-100 text-gray-400'
                                 } ${isCurrent && isUnlocked ? 'border-2 border-emerald-500 shadow-md bg-emerald-50' : 'border border-transparent'}`}
                                 onClick={() => { if (isUnlocked) setFactIndex(index); }}
                             >
-                                <span className={`text-sm font-medium pr-4 ${isUnlocked ? 'text-gray-700' : 'text-gray-400 italic'}`}>
+                                <span className={`text-sm font-medium pr-4 ${isUnlocked ? 'text-gray-700' : 'text-gray-500'}`}>
                                     <strong className="text-emerald-600">Fact {factNumber}:</strong> 
                                     {/* FIX 2: Only display fact if unlocked */}
                                     {isUnlocked ? fact : "Locked: Complete more quizzes!"}
@@ -848,7 +843,6 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
                                         <Volume2 className={`w-5 h-5 ${isSpeaking && isCurrent ? 'text-white' : 'text-emerald-600'}`} />
                                     </button>
                                 ) : (
-                                    {/* FIX 2: Display lock icon when fact is locked */}
                                     <Lock className="w-5 h-5 text-gray-400 flex-shrink-0" />
                                 )}
                             </div>
@@ -948,7 +942,7 @@ const StatsModal = ({ profile, onClose }) => {
     );
 };
 
-// --- NEW: Simple Modal for "Rewards" ---
+// NEW: Simple Modal for "Rewards"
 const RewardsModal = ({ profile, onClose }) => {
     return (
         <Modal title="My Rewards" onClose={onClose}>
@@ -963,7 +957,7 @@ const RewardsModal = ({ profile, onClose }) => {
 };
 
 
-// --- MAIN APP COMPONENT ---
+// MAIN APP COMPONENT
 
 const AnimalReadingApp = () => {
     // 🔥 State Hook 
@@ -989,7 +983,7 @@ const AnimalReadingApp = () => {
     
     // UI State
     const [showStatsModal, setShowStatsModal] = useState(false);
-    const [showRewardsModal, setShowRewardsModal] = useState(false); // --- NEW ---
+    const [showRewardsModal, setShowRewardsModal] = useState(false);
 
 
     // --- Game Data Initializer & Shuffling ---
@@ -997,9 +991,6 @@ const AnimalReadingApp = () => {
     const [shuffledSentences, setShuffledSentences] = useState([]);
 
     useEffect(() => {
-        // Only run if data is loaded (i.e., ANIMAL_DATABASE is not null)
-        if (!ANIMAL_DATABASE || ANIMAL_DATABASE.length === 0) return;
-
         const shuffleOptions = (item) => {
             let options = [...item.options];
             options.sort(() => Math.random() - 0.5);
@@ -1007,22 +998,22 @@ const AnimalReadingApp = () => {
         };
 
         const initialShuffle = () => {
-            // Check if data is available globally before accessing it
+            // FIX: Ensure global data objects are loaded before accessing properties
             if (window.sightWordsData && window.sentencesData) {
                 setShuffledWords(window.sightWordsData.map(shuffleOptions).sort(() => Math.random() - 0.5));
                 setShuffledSentences(window.sentencesData.map(shuffleOptions).sort(() => Math.random() - 0.5));
             } else {
-                console.error("Data is not yet available globally (app-data.js load issue).");
+                console.error("Data arrays not found. Check if app-data.js loaded correctly.");
             }
         };
         
         initialShuffle();
-    }, []); // Removed ANIMAL_DATABASE dependency since it's a global constant
+    }, []);
 
     // Effect to handle view transition after auth is ready and profile loaded
     useEffect(() => {
         if (isAuthReady && appView === 'loading') {
-            // --- FIX: Check profile.name instead of profile.userName ---
+            // FIX: Check profile.name instead of profile.userName
             if (!profile.name) {
                  setAppView('setup');
             } else {
@@ -1032,20 +1023,20 @@ const AnimalReadingApp = () => {
     }, [isAuthReady, appView, profile.name]);
 
 
-    // --- FIX: This handler is now passed to AW_WelcomeScreen ---
+    // FIX: This handler is now passed to AW_WelcomeScreen
     const handleStartPlaying = (loadedProfile) => {
         loadUserProfile(loadedProfile);
         setAppView('home');
     };
     
-    // --- FIX: This handler is now passed to the Sidebar ---
+    // FIX: This handler is now passed to the Sidebar
     const handleSignOutAndReset = () => {
         handleSignOut();
         setAppView('setup'); // Go back to the login screen
     };
 
     
-    // --- Handlers: Game Flow ---
+    // Handlers: Game Flow
 
     const startNewGame = (mode) => {
         setGameMode(mode);
@@ -1093,7 +1084,7 @@ const AnimalReadingApp = () => {
         const newScoreEntry = {
             score: finalScore,
             mode: mode,
-            userName: profile.name, // --- FIX: Use profile.name ---
+            userName: profile.name, // FIX: Use profile.name
             date: Date.now(),
         };
 
@@ -1140,7 +1131,7 @@ const AnimalReadingApp = () => {
                 setProfile(updatedProfile);
                 saveUserProfile(updatedProfile); 
                 
-                // --- FIX: Pass all required state setters to the reward function ---
+                // FIX: Pass all required state setters to the reward function
                 generateRewardAnimal(true, appView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal);
             } else {
                 // Standard Animal/Fact Reward
@@ -1197,17 +1188,17 @@ const AnimalReadingApp = () => {
         }
     };
     
-    // --- Components ---
+    // Components
 
     const Sidebar = () => {
-        const totalAnimals = ANIMAL_DATABASE.length;
+        const totalAnimals = ANIMAL_DATABASE ? ANIMAL_DATABASE.length : 0;
         const collectedCount = (profile.collectedAnimals || []).length;
         return (
-            // --- FIX: Responsive sidebar for mobile ---
+            // FIX: Responsive sidebar for mobile
             <div className="fixed top-0 left-0 h-full w-64 bg-gray-50 shadow-2xl z-40 flex flex-col p-6 border-r border-gray-200 
                             max-lg:w-full max-lg:h-auto max-lg:bottom-0 max-lg:top-auto max-lg:flex-row max-lg:items-center max-lg:justify-around max-lg:p-2 max-lg:border-t-2">
                 
-                {/* --- HIDE ON MOBILE --- */}
+                {/* HIDE ON MOBILE */}
                 <div className="flex flex-col mb-8 border-b pb-4 max-lg:hidden">
                     <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <Trophy className="w-6 h-6 text-emerald-500" /> Charlie's Words
@@ -1216,22 +1207,22 @@ const AnimalReadingApp = () => {
                     <p className="text-sm text-gray-500 mt-1">Player: {profile.name || 'Guest'} <span className="text-base ml-1">{profile.avatar}</span></p>
                 </div>
                 
-                {/* --- FIX: Horizontal nav for mobile --- */}
+                {/* FIX: Horizontal nav for mobile */}
                 <nav className="flex-grow space-y-3 max-lg:flex max-lg:space-y-0 max-lg:space-x-2 max-lg:flex-grow-0">
                     <SidebarButton icon={Home} label="Home" onClick={() => setAppView('home')} />
                     <SidebarButton 
                         icon={Image} 
                         // FIX 4: Only show "Collection" without count
-                        label={`Collection`} 
-                        labelDesktop={`Collection`} 
+                        label="Collection" 
+                        labelDesktop={`Collection (${collectedCount}/${totalAnimals})`} 
                         onClick={() => setAppView('gallery')} 
                     />
                     <SidebarButton icon={Trophy} label="Scores" labelDesktop="High Scores" onClick={() => setShowStatsModal(true)} />
-                    {/* --- FIX: Hook up rewards button --- */}
+                    {/* FIX: Hook up rewards button */}
                     <SidebarButton icon={Video} label={`Rewards`} labelDesktop={`Rewards (${profile.rewardsEarned || 0})`} onClick={() => setShowRewardsModal(true)} />
                 </nav>
 
-                {/* --- HIDE ON MOBILE --- */}
+                {/* HIDE ON MOBILE */}
                 <div className="mt-auto pt-6 border-t border-gray-200 space-y-3 max-lg:hidden">
                     <SidebarButton icon={Users} label="Change Player" data-action="signout" onClick={handleSignOutAndReset} />
                 </div>
@@ -1239,7 +1230,7 @@ const AnimalReadingApp = () => {
         );
     };
     
-    // --- FIX: SidebarButton now supports different mobile/desktop labels ---
+    // FIX: SidebarButton now supports different mobile/desktop labels
     const SidebarButton = ({ icon: Icon, label, labelDesktop, onClick }) => (
         <button
             onClick={onClick}
@@ -1252,7 +1243,7 @@ const AnimalReadingApp = () => {
         </button>
     );
 
-    // --- Main Views ---
+    // Main Views
     const LoadingScreen = () => (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
             <Loader2 className="w-16 h-16 animate-spin text-emerald-500" />
@@ -1260,7 +1251,7 @@ const AnimalReadingApp = () => {
         </div>
     );
     
-    // --- FIX: Main container styles for responsive sidebar ---
+    // FIX: Main container styles for responsive sidebar
     const MainContainer = ({ children }) => (
         <div className="flex h-screen w-screen max-lg:flex-col">
             <Sidebar />
@@ -1275,10 +1266,10 @@ const AnimalReadingApp = () => {
             <div className="w-full max-w-4xl">
                 <div className="mb-8">
                     {/* FIX 6: Add avatar to welcome message */}
-                    <h1 className="text-4xl font-extrabold text-gray-800">Welcome, {profile.name}! {profile.avatar}</h1>
+                    <h1 className="text-4xl font-extrabold text-gray-800">Welcome, {profile.name}! <span className="text-4xl">{profile.avatar}</span></h1>
                 </div>
                 
-                {/* --- STATS INDICATORS --- */}
+                {/* STATS INDICATORS */}
                 <div className="flex flex-wrap justify-around items-center bg-white p-4 rounded-xl mb-10 shadow-lg border border-gray-200">
                     <div className="flex items-center gap-2 text-xl font-semibold text-gray-700 p-2 max-sm:text-base">
                         <Star className="w-6 h-6 text-emerald-500" />
@@ -1290,11 +1281,11 @@ const AnimalReadingApp = () => {
                     </div>
                     <div className="flex items-center gap-2 text-xl font-semibold text-gray-700 p-2 max-sm:text-base">
                         <Image className="w-6 h-6 text-emerald-500" />
-                        Animals: {(profile.collectedAnimals || []).length}/{ANIMAL_DATABASE.length}
+                        Animals: {(profile.collectedAnimals || []).length}/{(ANIMAL_DATABASE || []).length}
                     </div>
                 </div>
 
-                {/* --- GAME TILES --- */}
+                {/* GAME TILES */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <button
                         onClick={() => pausedGame && pausedGame.mode === 'words' ? resumeGame() : startNewGame('words')}
@@ -1327,12 +1318,11 @@ const AnimalReadingApp = () => {
                 </div>
             </div>
             {showStatsModal && <StatsModal profile={profile} onClose={() => setShowStatsModal(false)} />}
-            {/* --- FIX: Hook up new rewards modal --- */}
             {showRewardsModal && <RewardsModal profile={profile} onClose={() => setShowRewardsModal(false)} />}
         </MainContainer>
     );
     
-    // --- Game Screen Logic ---
+    // Game Screen Logic
 
     const GameScreen = () => {
         const currentContent = gameMode === 'words' ? shuffledWords : shuffledSentences;
@@ -1548,7 +1538,7 @@ const AnimalReadingApp = () => {
         const [factModalOpen, setFactModalOpen] = useState(false);
         const [currentAnimal, setCurrentAnimal] = useState(null);
 
-        // --- FIX: This is the function that was broken ---
+        // FIX: This is the function that was broken
         const openFactModal = async (animal) => {
             // Use the new, corrected function from the hook
             const animalWithData = await getAnimalDataForModal(animal.name);
@@ -1563,10 +1553,10 @@ const AnimalReadingApp = () => {
             setCurrentAnimal(null);
         };
 
-        const totalAnimals = ANIMAL_DATABASE.length;
+        const totalAnimals = ANIMAL_DATABASE ? ANIMAL_DATABASE.length : 0;
         const collected = (profile.collectedAnimals || []);
         
-        const sortedAnimals = [...ANIMAL_DATABASE].sort((a, b) => {
+        const sortedAnimals = [...(ANIMAL_DATABASE || [])].sort((a, b) => {
             const aCollected = collected.includes(a.name);
             const bCollected = collected.includes(b.name);
             
@@ -1575,11 +1565,11 @@ const AnimalReadingApp = () => {
             return a.name.localeCompare(b.name);
         });
         
-        // --- NEW: State for preloaded image URLs ---
+        // NEW: State for preloaded image URLs
         const [imageUrls, setImageUrls] = useState({});
         
         useEffect(() => {
-            // --- NEW: Load all image URLs from manifest on mount for performance ---
+            // NEW: Load all image URLs from manifest on mount for performance
             const loadImages = async () => {
                 const manifest = await awLoadImageManifest();
                 if (manifest && manifest.images) {
@@ -1602,12 +1592,12 @@ const AnimalReadingApp = () => {
                         </p>
                     </div>
 
-                    {/* --- FIX: Grid is now responsive --- */}
+                    {/* FIX: Grid is now responsive */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                         {sortedAnimals.map((animal) => {
                             const isCollected = collected.includes(animal.name);
                             const factCount = (profile.factIndices || {})[animal.name] || 0;
-                            // --- FIX: Get image URL from state, not placeholder ---
+                            // FIX: Get image URL from state, not placeholder
                             const slug = slugify(animal.name);
                             const imageUrl = imageUrls[slug] || `https://placehold.co/400x250/f0fdf4/065f46?text=${animal.name.replace(' ', '+')}`;
                             
@@ -1615,11 +1605,11 @@ const AnimalReadingApp = () => {
                                 <div 
                                     key={animal.name} 
                                     className={`bg-white rounded-2xl overflow-hidden shadow-md transition-all ${isCollected ? 'border-2 border-emerald-200 hover:shadow-lg cursor-pointer' : 'border border-gray-200 opacity-60'}`}
-                                    // --- FIX: This onClick is now fully functional ---
+                                    // FIX: This onClick is now fully functional
                                     onClick={() => isCollected && openFactModal(animal)}
                                 >
                                     <div className="h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
-                                        {/* --- FIX: Show image if collected --- */}
+                                        {/* FIX: Show image if collected */}
                                         {isCollected ? (
                                             <img
                                                 src={imageUrl} 
@@ -1644,7 +1634,7 @@ const AnimalReadingApp = () => {
                         })}
                     </div>
                 </div>
-                {/* --- FIX: This modal is now correctly wired --- */}
+                {/* FIX: This modal is now correctly wired */}
                 {factModalOpen && currentAnimal && (
                 <FactModal 
                     animal={currentAnimal}
@@ -1660,11 +1650,11 @@ const AnimalReadingApp = () => {
     };
 
 
-    // --- View Controller ---
+    // View Controller
     switch (appView) {
         case 'loading':
             return <LoadingScreen />;
-        // --- FIX: Use AW_WelcomeScreen for the 'setup' view ---
+        // FIX: Use AW_WelcomeScreen for the 'setup' view
         case 'setup':
             return <AW_WelcomeScreen onStart={handleStartPlaying} />;
         case 'home':
@@ -1680,13 +1670,13 @@ const AnimalReadingApp = () => {
     }
 };
 
-// --- React Render Mount ---
+// React Render Mount
 const container = document.getElementById("root");
 const root = ReactDOM.createRoot(container);
 root.render(<AnimalReadingApp />);
 </script>
 <script>
-  // --- FIX: Use a safer preloader ---
+  // FIX: Use a safer preloader
   window.addEventListener('load', () => { 
       setTimeout(() => { 
           try { 
@@ -1705,7 +1695,7 @@ root.render(<AnimalReadingApp />);
       if (!el) return;
       try {
         localStorage.removeItem('playerName');
-        // --- FIX: Clear the full profile list on sign out ---
+        // FIX: Clear the full profile list on sign out
         localStorage.removeItem('profiles_v1'); 
       } catch(_){}
       // Best-effort return to Welcome
