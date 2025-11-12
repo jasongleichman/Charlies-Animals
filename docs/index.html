@@ -642,7 +642,7 @@ const Modal = ({ title, children, onClose }) => (
         </div>
     </div>
 );
-// Fact Modal Component (FIXED: Template literals, Lock logic)
+// Fact Modal Component (FIXED: Structural changes to fix button/div conflict)
 const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking }) => {
     // Default to the newest earned fact, or fact 0 if no facts earned yet (for gallery view)
     const [factIndex, setFactIndex] = useState(factsEarned > 0 ? factsEarned - 1 : 0);
@@ -680,26 +680,33 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
                         return (
                             <div
                                 key={index}
-                                // OnClick is only enabled for unlocked facts
+                                // Parent div for layout, no onClick here.
                                 className={`p-3 rounded-lg flex justify-between items-center transition-all ${
-                                    isUnlocked ? 'hover:bg-emerald-50 cursor-pointer' : 'bg-gray-100 text-gray-400 opacity-80'
+                                    isUnlocked ? 'hover:bg-emerald-50' : 'bg-gray-100 text-gray-400 opacity-80'
                                 } ${isCurrent && isUnlocked ? 'border-2 border-emerald-500 shadow-md bg-emerald-50' : 'border border-transparent'}`}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (isUnlocked) setFactIndex(index);
-                                }}
                             >
-                                <span className={`text-sm font-medium pr-4 ${isUnlocked ? 'text-gray-700' : 'text-gray-500'}`}>
-                                   
-                                    <strong className="text-emerald-600">Fact {`${factNumber}`}:</strong>
-                                  
-                                    {isUnlocked ? fact : "Locked: Complete more quizzes!"}
-                                </span>
+                                {/* NEW: Separate button for the fact text to select the index */}
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        // Stop propagation from reaching modal content wrapper
+                                        e.stopPropagation(); 
+                                        if (isUnlocked) setFactIndex(index);
+                                    }}
+                                    className={`flex-grow min-w-0 pr-4 text-left ${isUnlocked ? 'cursor-pointer' : 'cursor-default'}`}
+                                    disabled={!isUnlocked}
+                                >
+                                    <span className={`text-sm font-medium ${isUnlocked ? 'text-gray-700' : 'text-gray-500'}`}>
+                                        <strong className="text-emerald-600">Fact {`${factNumber}`}:</strong>
+                                        {isUnlocked ? fact : "Locked: Complete more quizzes!"}
+                                    </span>
+                                </button>
+                                
                                 {isUnlocked ? (
                                     <button
                                         onClick={(e) => {
+                                            // Keep both stop propagations for maximum safety, now that the structural conflict is removed
                                             e.stopPropagation();
-                                            // --- FIX 2 (Bug 2): Stop native event propagation to prevent modal collapse ---
                                             if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
                                             speak(fact);
                                         }}
