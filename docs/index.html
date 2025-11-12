@@ -502,6 +502,15 @@ const useAppState = () => {
             setIsSpeaking(false);
             return;
         }
+        
+        // --- FIX 1 (Bug 1): Safety timeout to prevent stuck spinner ---
+        let safetyTimeout = setTimeout(() => {
+            console.warn("Speech playback timed out after 8s. Forcing spinner reset.");
+            setIsSpeaking(false);
+        }, 8000); // 8 seconds max duration
+        
+        const clearSafetyTimeout = () => clearTimeout(safetyTimeout);
+
         // 2. Try to play the local .mp3 file
         const audioUrl = `./assets/tts/${slug}.mp3`;
         const audio = new Audio(audioUrl);
@@ -509,17 +518,17 @@ const useAppState = () => {
             audio.play().catch(e => {
                 console.warn(`Audio playback failed for ${audioUrl}`, e);
                 // If playback fails, use browser voice
-                window.__speakLocal(text).finally(() => setIsSpeaking(false));
+                window.__speakLocal(text).finally(() => { clearSafetyTimeout(); setIsSpeaking(false); });
             });
         };
        
-        audio.onended = () => setIsSpeaking(false);
+        audio.onended = () => { clearSafetyTimeout(); setIsSpeaking(false); };
         audio.onerror = () => {
             // 3. FALLBACK: If file is missing (404) or fails to load
             console.warn(`Audio file not found: ${audioUrl}. Using browser fallback.`);
            
             // Use the browser's built-in voice
-            window.__speakLocal(text).finally(() => setIsSpeaking(false));
+            window.__speakLocal(text).finally(() => { clearSafetyTimeout(); setIsSpeaking(false); });
         };
     }, [setIsSpeaking, setApiError]);
     // --- Core Initialization Effect [LOCAL-ONLY] ---
@@ -690,6 +699,8 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
+                                            // --- FIX 2 (Bug 2): Stop native event propagation to prevent modal collapse ---
+                                            if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
                                             speak(fact);
                                         }}
                                         disabled={isSpeaking && isCurrent}
