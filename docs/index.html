@@ -472,6 +472,8 @@ function AW_WelcomeScreen({ onStart }){
         .replace(/(^-|-$)/g, "");     // Trim leading/trailing dashes
 
 // --- PLAYER PROFILE CACHING UTILS ---
+// The functionality of these helpers has been merged into the 
+// awLoadProfiles, awSaveProfileData, and awLoadProfileByName functions above.
 const PLAYER_PROFILES_KEY = 'cached_player_profiles';
 const savePlayerName = (userId, name) => {};
 const getCachedPlayerProfiles = () => [];
@@ -481,6 +483,7 @@ const removePlayerProfile = (userId) => {};
 // --- CUSTOM HOOK: useAppState (LOCAL ONLY) ---
 
 const useAppState = () => {
+    // 🔥 State Hook 
     const [isAuthReady, setIsAuthReady] = useState(false);
     
     // --- Profile State (Loaded from localStorage) ---
@@ -534,7 +537,7 @@ const useAppState = () => {
 
 
     /**
-     * Plays a pre-generated local audio file.
+     * [NEW] Plays a pre-generated local audio file.
      * Falls back to the browser's built-in voice if the file is missing.
      */
     const speak = useCallback(async (text) => {
@@ -612,12 +615,11 @@ const useAppState = () => {
 
     // --- NEW: Function to get animal data (inc. image) for modals ---
     const getAnimalDataForModal = useCallback(async (animalName) => {
-        setIsLoading(true);
+        // NOTE: We rely on the caller (GalleryScreen) to manage the modal-specific loading state.
         
         const animal = window.ANIMAL_DATABASE ? window.ANIMAL_DATABASE.find(a => a.name === animalName) : null;
         if (!animal) {
              console.error("Animal not found:", animalName);
-             setIsLoading(false);
              return null;
         }
 
@@ -632,10 +634,9 @@ const useAppState = () => {
             console.warn("Could not load image manifest for modal", e);
         }
 
-        setIsLoading(false);
         return { ...animal, imageUrl };
         
-    }, [setIsLoading]);
+    }, []); // Removed setIsLoading(true/false) as it conflicts with main screen loading.
 
 
     const generateRewardAnimal = useCallback(async (isVideoReward = false, currentAppView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal) => {
@@ -686,7 +687,7 @@ const useAppState = () => {
         isSpeaking, isLoading, apiError, setApiError,
         saveUserProfile, handleSignOut, speak, 
         generateRewardAnimal, getAnimalDataForModal, 
-        loadUserProfile 
+        loadUserProfile
     };
 }; // --- End of useAppState hook ---
 
@@ -731,7 +732,7 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
             <div className="space-y-4">
                 <div className="text-center">
                     <h3 className="text-xl font-bold text-gray-800">{animal.name}</h3>
-                    {/* FIX 1: Corrected template literal formatting */}
+                    {/* FIX 1: Correct template literal formatting */}
                     <p className="text-sm text-gray-500">Facts Unlocked: <span className="font-semibold text-emerald-600">{`${factsEarned} / ${totalFactsCount}`}</span></p>
                 </div>
 
@@ -801,23 +802,24 @@ const VideoRewardModal = ({ rewardTitle, onClose }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     
     // Choose a random video 
-    const videoIndex = Math.floor(Math.random() * (window.VIDEO_DATABASE || []).length);
-    const actualVideo = (window.VIDEO_DATABASE || [])[videoIndex];
+    const videoDatabase = window.VIDEO_DATABASE || [];
+    const videoIndex = Math.floor(Math.random() * (videoDatabase.length || 1));
+    const actualVideo = videoDatabase[videoIndex] || { title: 'No Video Available', url: '' };
 
     // FIX 3: Convert YouTube URL to embed URL for playback
-    const embedUrl = actualVideo && (actualVideo.url.includes("youtube.com") || actualVideo.url.includes("youtu.be"))
+    const embedUrl = actualVideo.url && (actualVideo.url.includes("youtube.com") || actualVideo.url.includes("youtu.be"))
                      ? actualVideo.url.replace(/(watch\?v=|\/youtu\.be\/)([^&]+).*/, 'embed/$2')
-                     : actualVideo ? actualVideo.url : null;
+                     : actualVideo.url;
 
 
     return (
         <Modal title="🎉 10-Streak Reward!" onClose={onClose}>
             <div className="text-center space-y-4">
-                <h3 className="text-2xl font-bold text-gray-800">Video Unlocked: {actualVideo ? actualVideo.title : 'No Video Available'}</h3>
+                <h3 className="text-2xl font-bold text-gray-800">Video Unlocked: {actualVideo.title}</h3>
                 <p className="text-gray-500">You earned this video for 10 consecutive correct answers!</p>
                 
                 <div className="relative w-full aspect-video bg-gray-900 rounded-xl overflow-hidden flex items-center justify-center">
-                    {!actualVideo || !embedUrl ? (
+                    {!actualVideo.url || !embedUrl ? (
                         <div className="text-white">Video data missing.</div>
                     ) : !isPlaying ? (
                         <div className="flex flex-col items-center justify-center h-full w-full">
@@ -845,8 +847,8 @@ const VideoRewardModal = ({ rewardTitle, onClose }) => {
                 <button 
                     onClick={onClose} 
                     className={`w-full bg-emerald-500 text-white font-semibold py-3 rounded-xl hover:bg-emerald-600 transition-colors mt-4 
-                    ${!actualVideo ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={!actualVideo}
+                    ${!actualVideo.url ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!actualVideo.url}
                 >
                     Continue to Animal Fact <ArrowRight className="w-6 h-6 inline ml-2" />
                 </button>
@@ -854,7 +856,6 @@ const VideoRewardModal = ({ rewardTitle, onClose }) => {
         </Modal>
     );
 };
-
 
 // Rewards Modal Component (FIXED: Shows tiles and embeds for all earned videos)
 const RewardsModal = ({ profile, onClose }) => {
@@ -890,7 +891,7 @@ const RewardsModal = ({ profile, onClose }) => {
                                 key={index}
                                 className={`bg-white rounded-xl overflow-hidden shadow-md transition-all ${isUnlocked ? 'border-2 border-emerald-500' : 'border-2 border-gray-300 opacity-70'}`}
                             >
-                                <div className="relative w-full aspect-video">
+                                <div className="relative aspect-video">
                                     {isUnlocked ? (
                                         <iframe
                                             className="w-full h-full"
@@ -922,6 +923,43 @@ const RewardsModal = ({ profile, onClose }) => {
 };
 
 
+// Stats Modal Component
+const StatsModal = ({ profile, onClose }) => {
+    const sortedScores = profile.highScores 
+        ? [...profile.highScores].sort((a, b) => b.score - a.score) 
+        : [];
+    
+    return (
+        <Modal title="High Score History" onClose={onClose}>
+            <div className="space-y-4">
+                <p className="text-sm text-gray-500 border-b pb-2">All scores logged for player: <span className="font-semibold text-emerald-600">{profile.name}</span></p>
+                <div className="max-h-80 overflow-y-auto space-y-3">
+                    {sortedScores.length > 0 ? (
+                        sortedScores.map((s, index) => (
+                            <div key={index} className="bg-gray-50 p-4 rounded-xl flex justify-between items-center shadow-sm">
+                                <div className="flex items-center space-x-3">
+                                    <Trophy className={`w-6 h-6 ${index === 0 ? 'text-emerald-500' : 'text-gray-400'}`} />
+                                    <div>
+                                        <p className="text-lg font-bold text-gray-800">Score: {s.score}</p>
+                                        <p className="text-xs text-gray-500">Player: {s.userName}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm text-gray-600 font-semibold">{s.mode === 'words' ? 'Words Quiz' : 'Sentence Quiz'}</p>
+                                    <p className="text-xs text-gray-400">{new Date(s.date).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-center text-gray-500 py-4">No scores logged yet. Start playing!</p>
+                    )}
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+
 // MAIN APP COMPONENT
 
 const AnimalReadingApp = () => {
@@ -946,10 +984,10 @@ const AnimalReadingApp = () => {
     const [animalData, setAnimalData] = useState(null); // The animal object for the reward screen
     const [pausedGame, setPausedGame] = useState(null); // Stores { mode, index, score } of a paused game
     
-    // UI State
+    // UI State (Modals that persist across main views)
     const [showStatsModal, setShowStatsModal] = useState(false);
     const [showRewardsModal, setShowRewardsModal] = useState(false);
-
+    
     // FIX (Navigation Bug): Centralized navigation function to ensure modals are cleared on view change
     const navigateTo = useCallback((newView, clearModals = true) => {
         if (clearModals) {
@@ -1167,7 +1205,7 @@ const AnimalReadingApp = () => {
     const Sidebar = () => {
         const totalAnimals = window.ANIMAL_DATABASE ? window.ANIMAL_DATABASE.length : 0;
         const collectedCount = (profile.collectedAnimals || []).length;
-
+        
         // FIX (Navigation Bug): Handlers use the navigateTo function
         const handleHomeClick = () => navigateTo('home', true);
         const handleCollectionClick = () => navigateTo('gallery', true);
@@ -1193,12 +1231,14 @@ const AnimalReadingApp = () => {
                     <SidebarButton icon={Home} label="Home" onClick={handleHomeClick} />
                     <SidebarButton 
                         icon={Image} 
+                        // FIX 4: Only show "Collection" without count
                         label="Collection" 
                         labelDesktop={`Collection`} 
                         onClick={handleCollectionClick} 
                     />
+                    {/* FIX (Navigation Bug): Modals must only set modal state, not change view */}
                     <SidebarButton icon={Trophy} label="Scores" labelDesktop="High Scores" onClick={handleScoresClick} />
-                    {/* FIX 1: Correct template literal formatting */}
+                    {/* FIX: Hook up rewards button */}
                     <SidebarButton icon={Video} label={`Rewards`} labelDesktop={`Rewards (${profile.rewardsEarned || 0})`} onClick={handleRewardsClick} />
                 </nav>
 
@@ -1241,7 +1281,6 @@ const AnimalReadingApp = () => {
         </div>
     );
 
-    // Updated WelcomeScreen to ensure modals are rendered outside of main view logic
     const WelcomeScreen = () => (
         <MainContainer>
             <div className="w-full max-w-4xl">
@@ -1299,7 +1338,6 @@ const AnimalReadingApp = () => {
                     </button>
                 </div>
             </div>
-            {/* The modals controlled by setShowStatsModal/setShowRewardsModal */}
             {showStatsModal && <StatsModal profile={profile} onClose={() => setShowStatsModal(false)} />}
             {showRewardsModal && <RewardsModal profile={profile} onClose={() => setShowRewardsModal(false)} />}
         </MainContainer>
@@ -1526,38 +1564,35 @@ const AnimalReadingApp = () => {
         </MainContainer>
     );
     
-    // FIX (Collection Modal): Re-implemented openFactModal to ensure it's async and updates state correctly.
+    // FIX (Collection Modal): Added local loading state and verified async function structure.
     const GalleryScreen = () => {
         const [factModalOpen, setFactModalOpen] = useState(false);
+        const [modalLoading, setModalLoading] = useState(false); // NEW: Local loading state
         const [currentAnimal, setCurrentAnimal] = useState(null);
-
-        // State to hold preloaded image URLs for the main gallery view
         const [imageUrls, setImageUrls] = useState({});
 
-        // --- Core Modal Opening Logic (FIXED) ---
         const openFactModal = useCallback(async (animal) => {
-            // 1. Fetch the full, detailed animal data (this is an asynchronous operation)
+            if (modalLoading) return; 
+
+            setModalLoading(true); // Start loading indicator
+
+            // Await the asynchronous data fetch
             const animalWithData = await getAnimalDataForModal(animal.name);
 
-            // 2. Only proceed if data was successfully fetched
+            // Once data is returned, stop loading, update data, and open modal
+            setModalLoading(false); 
+
             if (animalWithData) {
-                // 3. Calculate additional facts earned from profile
                 const factsEarned = (profile.factIndices || {})[animal.name] || 0;
                 
-                // 4. Update the state with the new complete animal data AND open the modal
                 setCurrentAnimal({ ...animalWithData, factsEarned });
                 setFactModalOpen(true);
             } else {
                 console.error("Failed to load full animal data for modal.");
+                // Optionally show a user-facing error message here
             }
-        }, [getAnimalDataForModal, profile.factIndices]);
-
-        const closeFactModal = () => {
-            setFactModalOpen(false);
-            setCurrentAnimal(null);
-        };
-        // -------------------------------------------
-
+        }, [getAnimalDataForModal, profile.factIndices, modalLoading]);
+        
         // Logic for preloading image manifest remains the same
         useEffect(() => {
             const loadImages = async () => {
@@ -1634,13 +1669,20 @@ const AnimalReadingApp = () => {
                         })}
                     </div>
                 </div>
-                {/* FactModal renders here, controlled by local state */}
+                {/* NEW: Local Loading Indicator for the modal */}
+                {modalLoading && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
+                         <Loader2 className="w-16 h-16 animate-spin text-emerald-400" />
+                    </div>
+                )}
+
+                {/* FactModal should only render if open AND data is available */}
                 {factModalOpen && currentAnimal && (
                 <FactModal 
                     animal={currentAnimal}
                     factsEarned={currentAnimal.factsEarned} 
                     totalFacts={currentAnimal.facts.length}
-                    onClose={closeFactModal}
+                    onClose={() => { setFactModalOpen(false); setCurrentAnimal(null); }}
                     speak={speak}
                     isSpeaking={isSpeaking}
                 />
@@ -1674,7 +1716,7 @@ const AnimalReadingApp = () => {
 const container = document.getElementById("root");
 const root = ReactDOM.createRoot(container);
 root.render(<AnimalReadingApp />);
-; // <<<< CRITICAL FIX: Semicolon added to terminate the line.
+; 
 
 </script>
 <script>
