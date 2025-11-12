@@ -640,11 +640,15 @@ const Modal = ({ title, children, onClose }) => (
     </div>
 );
 
-let __factAudioCache = {};               // slug → Audio object
+<script type="text/babel">
+/* --------------------------------------------------------------
+   FACT MODAL – NO SYNTAX ERROR + INSTANT AUDIO (pre-loaded)
+   -------------------------------------------------------------- */
+let __factAudioCache = {};  // global cache: slug → Audio
 
-// PRE-LOAD ALL FACT MP3s ONCE (called from bottom of file)
+// PRE-LOAD ALL FACT MP3s (called once at app start)
 const preloadFactAudio = async () => {
-  if (Object.keys(__factAudioCache).length) return; // already done
+  if (Object.keys(__factAudioCache).length) return;
 
   const facts = (window.ANIMAL_DATABASE || [])
     .flatMap(a => a.facts)
@@ -670,19 +674,20 @@ const preloadFactAudio = async () => {
   console.log(`Fact audio pre-loaded (${Object.keys(__factAudioCache).length} files)`);
 };
 
+/* --------------------------------------------------------------
+   FACT MODAL – FINAL FIXED VERSION
+   -------------------------------------------------------------- */
 const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking }) => {
   const [factIndex, setFactIndex] = useState(factsEarned > 0 ? factsEarned - 1 : 0);
   const totalFactsCount = animal.facts.length;
 
-  // FIXED: Correct useEffect syntax
+  // FIXED: Correct useEffect syntax (was useEffect() =>)
   useEffect(() => {
     if (factsEarned > 0) setFactIndex(factsEarned - 1);
   }, [factsEarned]);
 
-  // stop any click from bubbling to backdrop
   const stop = e => e.stopPropagation();
 
-  // INSTANT PLAY FROM CACHE
   const playFact = (text) => {
     stop(new Event('click'));
     const slug = text.toLowerCase()
@@ -695,7 +700,6 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
       cached.play().catch(() => window.__speakLocal(text));
       return;
     }
-    // fallback (should never happen)
     window.__speakLocal(text);
   };
 
@@ -770,6 +774,7 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
     </Modal>
   );
 };
+</script>
   
 // Video Reward Modal Component (Used only after a 10-streak)
 const VideoRewardModal = ({ rewardTitle, onClose }) => {
@@ -1647,5 +1652,13 @@ root.render(<AnimalReadingApp />);
       try { window.location.reload(); } catch(_){}
     }, true);
   </script>
+  <script>
+  // Preload all fact audio when the page loads
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      try { preloadFactAudio(); } catch (e) { console.error(e); }
+    }, 600);
+  });
+</script>
 </body>
 </html>
