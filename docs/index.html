@@ -2252,48 +2252,29 @@ const useAppState = () => {
         }
     }, [userApiKey, setApiError, setIsSpeaking, cacheStatus]);
 
-
-    // --- Core Firebase Initialization Effect ---
-    useEffect(() => {
-        if (!window.appInstance || !window.appInstance.options) {
-             console.warn("Firebase app instance not initialized in the global scope.");
-             setIsAuthReady(true);
-             setApiError("Firebase setup missing from index.html.");
-             return;
+// --- Core Initialization Effect [MODIFIED FOR LOCAL-ONLY] ---
+useEffect(() => {
+    try {
+        // Use a simple local UID instead of Firebase auth
+        let uid = localStorage.getItem('local_uid');
+        if (!uid) {
+            uid = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+            localStorage.setItem('local_uid', uid);
         }
-        
-        try {
-            const firestore = window.firebase.getFirestore(window.appInstance);
-            const authInstance = window.firebase.getAuth(window.appInstance);
-            setDb(firestore || null);
-            setAuth(authInstance || null);
+        setUserId(uid);
+    } catch (e) {
+        console.error("Error setting up local user ID:", e);
+        setUserId('default-local-user'); // Fallback
+    }
 
-            const unsubscribe = window.firebase.onAuthStateChanged(authInstance, async (user) => {
-                if (user) {
-                    setUserId(user.uid);
-                } else if (__initial_auth_token) {
-                    await window.firebase.signInWithCustomToken(authInstance, __initial_auth_token);
-                } else {
-                    const anonUser = await window.firebase.signInAnonymously(authInstance);
-                    setUserId(anonUser.user.uid);
-                }
-                setIsAuthReady(true);
-            });
-            return () => {
-                unsubscribe();
-            };
-        } catch (e) {
-            console.error("Firebase Initialization Error:", e);
-            setIsAuthReady(true);
-            setApiError("Firebase initialization failed.");
-            try {
-                const __local_uid = localStorage.getItem('local_uid') || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
-                localStorage.setItem('local_uid', __local_uid);
-                if (!userId) setUserId(__local_uid);
-            } catch (e) { }
+    // We are not waiting for Firebase, so auth is "ready" immediately.
+    setIsAuthReady(true);
+
+    // We clear the error, since we are not expecting Firebase.
+    setApiError(null); 
+
+}, []); // Empty dependency array ensures this runs once
     
-        }
-    }, []); // Empty dependency array ensures this runs once
 
 
     // --- Load Profile Effect (Runs after Auth is Ready and User is logged in) ---
