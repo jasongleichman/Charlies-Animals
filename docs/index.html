@@ -729,7 +729,7 @@ const VideoRewardModal = ({ rewardTitle, onClose }) => {
     const actualVideo = videoDatabase[videoIndex] || { title: 'No Video Available', url: '' };
     // FIX 3: Convert YouTube URL to embed URL for playback
     const embedUrl = actualVideo.url && (actualVideo.url.includes("youtube.com") || actualVideo.url.includes("youtu.be"))
-                     ? actualVideo.url.replace(/(watch\?v=|\/youtu\.be\/)([^&]+).*, 'embed/$2')
+                     ? actualVideo.url.replace(/(watch\?v=|\/youtu\.be\/)([^&]+).*/, 'embed/$2')
                      : actualVideo.url;
     return (
         <Modal title="🎉 10-Streak Reward!" onClose={onClose}>
@@ -799,7 +799,7 @@ const RewardsModal = ({ profile, onClose }) => {
                         const isUnlocked = rewardsEarned > index;
                         // FIX 3: Ensure YouTube URL is in embed format for playback in iframe
                         const embedUrl = (video.url.includes("youtube.com") || video.url.includes("youtu.be"))
-                                        ? video.url.replace(/(watch\?v=|\/youtu\.be\/)([^&]+).*, 'embed/$2')
+                                        ? video.url.replace(/(watch\?v=|\/youtu\.be\/)([^&]+).*/, 'embed/$2')
                                         : video.url; // Fallback for non-YouTube links
                        
                         return (
@@ -1595,13 +1595,5 @@ root.render(<AnimalReadingApp />);
       try { window.location.reload(); } catch(_){}
     }, true);
   </script>
-  <script>
-  // Preload all fact audio when the page loads
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      try { preloadFactAudio(); } catch (e) { console.error(e); }
-    }, 600);
-  });
-</script>
 </body>
 </html>
