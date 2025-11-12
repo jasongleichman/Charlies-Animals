@@ -1,28 +1,32 @@
 #!/usr/bin/env node
 /**
- * Diff-only TTS builder using AWS Polly (CommonJS)
- * - Reads animal names from docs/index.html (ANIMAL_DATABASE names)
+ * [NEW & IMPROVED] Diff-only TTS builder using AWS Polly (CommonJS)
+ * - Reads ANIMAL_DATABASE, sightWordsData, and sentencesData from docs/index.html
+ * - Collects ALL unique text (names, facts, words, sentences)
  * - Generates only missing files at docs/assets/tts/<slug>.mp3
  * - Throttles requests via --rate (ms) (default 7000)
  * - Voice from --voice (default Matthew)
  *
  * Usage:
- *  node scripts/build_tts_polly.cjs --db=docs/index.html --out=./docs/assets --rate=7000 --voice=Matthew
+ * node scripts/build_tts_polly.cjs --db=docs/index.html --out=./docs/assets --rate=7000 --voice=Matthew
  */
 
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm"); // Added to read JS variables
 const { PollyClient, SynthesizeSpeechCommand } = require("@aws-sdk/client-polly");
 
 // -------- CLI ARGS --------
 function arg(key, def = null) {
   const hit = process.argv.find(a => a.startsWith(`--${key}=`));
-  return hit ? hit.split("=").slice(1).join("=") : def;
+  return hit ?
+    hit.split("=").slice(1).join("=") : def;
 }
 const DB_PATH   = arg("db", "docs/index.html");
 const OUT_ROOT  = arg("out", "./docs/assets");
 const RATE_MS   = parseInt(arg("rate", "7000"), 10) || 7000;
-const VOICE_ID  = arg("voice", "Matthew"); // e.g., Matthew, Joanna, Salli, etc.
+const VOICE_ID  = arg("voice", "Matthew");
+// e.g., Matthew, Joanna, Salli, etc.
 
 const TTS_DIR   = path.join(OUT_ROOT, "tts");
 fs.mkdirSync(TTS_DIR, { recursive: true });
@@ -34,19 +38,70 @@ const toSlug = (s) => (s || "")
   .replace(/[^a-z0-9]+/g, "-")
   .replace(/(^-|-$)/g, "");
 
-// Extract animal names from ANIMAL_DATABASE in index.html
-function readAnimalNamesFromIndex(dbFile) {
+/**
+ * [NEW] Extracts all JS databases from the index.html file
+ */
+function readDatabases(dbFile) {
   const html = fs.readFileSync(dbFile, "utf8");
-  // very tolerant scrape of: name: 'Fennec Fox' or name: "Fennec Fox"
-  const names = [];
-  const re = /name\s*:\s*['"]([^'"]+)['"]/g;
-  let m;
-  while ((m = re.exec(html)) !== null) {
-    const n = m[1].trim();
-    if (n && !names.includes(n)) names.push(n);
-  }
-  return names;
+  const ctx = {}; 
+  vm.createContext(ctx);
+
+  const animalMatch = html.match(/const\s+ANIMAL_DATABASE\s*=\s*(\[[\s\S]*?\]);/);
+  const sightMatch = html.match(/const\s+sightWordsData\s*=\s*(\[[\s\S]*?\]);/);
+  const sentenceMatch = html.match(/const\s+sentencesData\s*=\s*(\[[\s\S]*?\]);/);
+
+  if (!animalMatch) throw new Error("Could not find ANIMAL_DATABASE in index.html");
+  if (!sightMatch) throw new Error("Could not find sightWordsData in index.html");
+  if (!sentenceMatch) throw new Error("Could not find sentencesData in index.html");
+
+  const animals = vm.runInContext("(" + animalMatch[1] + ")", ctx);
+  const sightWords = vm.runInContext("(" + sightMatch[1] + ")", ctx);
+  const sentences = vm.runInContext("(" + sentenceMatch[1] + ")", ctx);
+
+  return { animals, sightWords, sentences };
 }
+
+/**
+ * [NEW] Collects all unique text strings from all databases
+ */
+function collectAllText({ animals, sightWords, sentences }) {
+  const textSet = new Set();
+
+  // 1. Animal Names
+  console.log(`... collecting ${animals.length} animal names`);
+  animals.forEach(animal => {
+    if (animal.name) textSet.add(animal.name);
+  });
+
+  // 2. Animal Facts
+  let factCount = 0;
+  animals.forEach(animal => {
+    if (animal.facts && Array.isArray(animal.facts)) {
+      animal.facts.forEach(fact => {
+        if (fact) {
+          textSet.add(fact);
+          factCount++;
+        }
+      });
+    }
+  });
+  console.log(`... collecting ${factCount} animal facts`);
+
+  // 3. Sight Words
+  console.log(`... collecting ${sightWords.length} sight words`);
+  sightWords.forEach(item => {
+    if (item.word) textSet.add(item.word);
+  });
+  
+  // 4. Sentences
+  console.log(`... collecting ${sentences.length} sentences`);
+  sentences.forEach(item => {
+    if (item.sentence) textSet.add(item.sentence);
+  });
+
+  return Array.from(textSet);
+}
+
 
 // -------- AWS POLLY --------
 const REGION = process.env.AWS_REGION || "us-east-1";
@@ -61,10 +116,24 @@ async function synthesizeToFile(text, outFile) {
     LanguageCode: "en-US",      // clear American English
     SampleRate: "22050"
   });
+
   const { AudioStream } = await polly.send(cmd);
-  const chunks = [];
-  for await (const c of AudioStream) chunks.push(Buffer.from(c));
-  fs.writeFileSync(outFile, Buffer.concat(chunks));
+  if (!AudioStream) {
+    throw new Error("No AudioStream returned from Polly.");
+  }
+
+  // Write the stream to a file
+  const writer = fs.createWriteStream(outFile);
+  for await (const chunk of AudioStream) {
+    writer.write(chunk);
+  }
+  writer.end();
+  
+  return new Promise((resolve, reject) => {
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+    AudioStream.on('error', reject);
+  });
 }
 
 // -------- MAIN --------
@@ -76,31 +145,45 @@ async function synthesizeToFile(text, outFile) {
     process.exit(1);
   }
 
-  const names = readAnimalNamesFromIndex(DB_PATH);
-  console.log(`Found ${names.length} animals in ${DB_PATH}`);
+  // 1. Get all data
+  const { animals, sightWords, sentences } = readDatabases(DB_PATH);
+  const allText = collectAllText({ animals, sightWords, sentences });
+  
+  console.log(`\nFound ${allText.length} unique text strings to synthesize.`);
 
+  // 2. Loop and generate
   let created = 0, skipped = 0, failed = 0;
+  for (const text of allText) {
+    const slug = toSlug(text);
+    if (!slug) {
+        console.log(`⚠️  Skipping empty text.`);
+        continue;
+    }
 
-  for (const name of names) {
-    const slug = toSlug(name);
-    const outFile = path.join(TTS_DIR, `${slug}.mp3`);
+    // Handle very long slugs (from facts/sentences) by truncating
+    const safeSlug = slug.length > 100 ? slug.substring(0, 100) : slug;
+    const outFile = path.join(TTS_DIR, `${safeSlug}.mp3`);
+
     if (fs.existsSync(outFile)) {
-      console.log(`✅ exists: ${name}`);
+      // console.log(`✅ exists: ${text.substring(0, 50)}...`);
       skipped++;
       continue;
     }
 
-    // Build a short, clear, American-English pronunciation line
-    const line = `${name}.`;
-
+    // Synthesize the full, original text
     try {
-      console.log(`🎙  TTS: ${name} → ${outFile}`);
-      await synthesizeToFile(line, outFile);
+      console.log(`🎙  TTS: [${text.substring(0, 60)}...]`);
+      await synthesizeToFile(text, outFile);
       created++;
-      await sleep(RATE_MS);
+      console.log(`   -> Saved ${outFile}`);
+      await sleep(RATE_MS); // Throttle requests
     } catch (e) {
       failed++;
-      console.error(`❌ TTS fail: ${name} :: ${e.message || e}`);
+      console.error(`❌ TTS fail: ${text.substring(0, 60)}... :: ${e.message || e}`);
+      if (e.message && e.message.includes("TextLengthExceededException")) {
+         console.warn(`   ---> This text was too long for Polly. You may need to shorten it in index.html.`);
+      }
+      // Don't stop the whole script, just skip this one
     }
   }
 
