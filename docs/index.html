@@ -640,17 +640,64 @@ const Modal = ({ title, children, onClose }) => (
     </div>
 );
 
+let __factAudioCache = {};               // slug → Audio object
+
+// PRE-LOAD ALL FACT MP3s ONCE (called from bottom of file)
+const preloadFactAudio = async () => {
+  if (Object.keys(__factAudioCache).length) return; // already done
+
+  const facts = (window.ANIMAL_DATABASE || [])
+    .flatMap(a => a.facts)
+    .filter(Boolean);
+
+  const slugs = [...new Set(
+    facts.map(f => f.toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, ""))
+  )];
+
+  const jobs = slugs.map(slug => {
+    return new Promise(res => {
+      const url = `./assets/tts/${slug}.mp3`;
+      const a = new Audio(url);
+      a.preload = "auto";
+      a.oncanplaythrough = () => { __factAudioCache[slug] = a; res(); };
+      a.onerror = () => { __factAudioCache[slug] = null; res(); };
+    });
+  });
+
+  await Promise.allSettled(jobs);
+  console.log(`Fact audio pre-loaded (${Object.keys(__factAudioCache).length} files)`);
+};
+
 const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking }) => {
   const [factIndex, setFactIndex] = useState(factsEarned > 0 ? factsEarned - 1 : 0);
   const totalFactsCount = animal.facts.length;
 
-  // show newest unlocked fact when factsEarned changes
+  // FIXED: Correct useEffect syntax
   useEffect(() => {
     if (factsEarned > 0) setFactIndex(factsEarned - 1);
   }, [factsEarned]);
 
-  // stop any click from bubbling to the backdrop
+  // stop any click from bubbling to backdrop
   const stop = e => e.stopPropagation();
+
+  // INSTANT PLAY FROM CACHE
+  const playFact = (text) => {
+    stop(new Event('click'));
+    const slug = text.toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const cached = __factAudioCache[slug];
+    if (cached) {
+      cached.currentTime = 0;
+      cached.play().catch(() => window.__speakLocal(text));
+      return;
+    }
+    // fallback (should never happen)
+    window.__speakLocal(text);
+  };
 
   return (
     <Modal title={`${animal.name} Collection`} onClose={onClose}>
@@ -698,8 +745,7 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
                 {unlocked ? (
                   <button
                     type="button"
-                    onClick={e => { stop(e); speak(f); }}
-                    disabled={isSpeaking && current}
+                    onClick={e => { stop(e); playFact(f); }}
                     className={`p-2 rounded-full flex-shrink-0 transition
                                ${isSpeaking && current ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-100 hover:bg-emerald-200'}`}
                   >
@@ -724,6 +770,7 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
     </Modal>
   );
 };
+  
 // Video Reward Modal Component (Used only after a 10-streak)
 const VideoRewardModal = ({ rewardTitle, onClose }) => {
     const [isPlaying, setIsPlaying] = useState(false);
