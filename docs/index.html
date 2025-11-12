@@ -515,13 +515,6 @@ function AW_WelcomeScreen({ onStart }){
         .replace(/[^a-z0-9]+/g, "-") // Convert to slug
         .replace(/(^-|-$)/g, "");     // Trim leading/trailing dashes
 
-    // --- FIX 3: Reference data variables from the global scope (loaded from app-data.js) ---
-    // These should now be globally available via the script tag in the head.
-    const ANIMAL_DATABASE = window.ANIMAL_DATABASE;
-    const sightWordsData = window.sightWordsData;
-    const sentencesData = window.sentencesData;
-    const VIDEO_DATABASE = window.VIDEO_DATABASE;
-
 // --- PLAYER PROFILE CACHING UTILS ---
 // The functionality of these helpers has been merged into the 
 // awLoadProfiles, awSaveProfileData, and awLoadProfileByName functions above.
