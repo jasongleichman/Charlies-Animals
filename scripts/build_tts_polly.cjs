@@ -24,7 +24,7 @@ function arg(key, def = null) {
 }
 const DB_PATH   = arg("db", "docs/index.html");
 const OUT_ROOT  = arg("out", "./docs/assets");
-const RATE_MS   = parseInt(arg("rate", "7000"), 10) || 7000;
+const RATE_MS   = parseInt(arg("rate", "1000"), 10) || 1000;
 const VOICE_ID  = arg("voice", "Matthew");
 // e.g., Matthew, Joanna, Salli, etc.
 
