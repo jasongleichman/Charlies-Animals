@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta name="mobile-web-app-capable" content="yes">
@@ -315,6 +316,117 @@
 
 <script type="text/babel">
     
+
+
+
+/* ================== Local Profiles (no Firebase) ================== */
+const AW_AVATAR_EMOJI = ["🦊","🦁","🐯","🐻","🐼","🐨","🐵","🦝","🦓","🦒","🦘","🦭","🦥","🦔","🦅","🦉","🦩","🦚"];
+function awLoadProfiles(){ try { return JSON.parse(localStorage.getItem("profiles_v1")||"[]"); } catch { return []; } }
+function awSaveProfiles(list){ try { localStorage.setItem("profiles_v1", JSON.stringify(list)); } catch {} }
+function awGetSavedName(){ try { return localStorage.getItem("playerName") || ""; } catch { return ""; } }
+function awAddOrUpdateProfile(name, avatar){
+  const list = awLoadProfiles();
+  const idx = list.findIndex(p => (p.name||"").toLowerCase() === (name||"").toLowerCase());
+  const record = { name: name.trim(), avatar: avatar || "🦊", lastPlayed: Date.now() };
+  if (idx >= 0) list[idx] = { ...list[idx], ...record }; else list.push(record);
+  awSaveProfiles(list);
+  try { localStorage.setItem("playerName", record.name); } catch {}
+  return record;
+}
+function awClearActiveProfile(){ try { localStorage.removeItem("playerName"); } catch {} }
+
+/* ================== Asset Manifests + Helpers ================== */
+async function awLoadImageManifest(){ try { const r=await fetch("./assets/manifest.json",{cache:"no-store"}); return r.ok?await r.json():null; } catch { return null; } }
+async function awGetLocalImageForAnimal(name, slug){
+  const m = await awLoadImageManifest(); if (!m || !m.images) return null;
+  const s = (slug||name||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+  return m.images[s] || null;
+}
+window.getLocalImageForAnimal = awGetLocalImageForAnimal;
+
+/* ================== Web Speech TTS fallback ================== */
+let __awVoices = []; let __awVoiceReady = false;
+function awLoadVoices(){
+  return new Promise(res=>{
+    const tryLoad=()=>{ const v=speechSynthesis.getVoices(); if (v && v.length){ __awVoices=v; __awVoiceReady=true; res(v);} else setTimeout(tryLoad,200); };
+    tryLoad();
+  });
+}
+function awPickEnUSMale(){
+  const pref = ["Aaron","Alex","Eddy","Evan","Reed","Tom","Google US English","Microsoft David","Daniel","Matthew","Oliver"];
+  const en = __awVoices.filter(v => /en[-_]?US/i.test(v.lang||v.voiceURI||""));
+  for (const n of pref){ const hit=en.find(v => (v.name||v.voiceURI||"").toLowerCase().includes(n.toLowerCase())); if (hit) return hit; }
+  return en[0] || __awVoices[0] || null;
+}
+async function awSpeak(text){
+  try{
+    if (!__awVoiceReady) await awLoadVoices();
+    const u = new SpeechSynthesisUtterance(text||"");
+    const v = awPickEnUSMale(); if (v) u.voice=v;
+    u.rate=0.92; u.pitch=1.0; u.volume=1.0; u.lang="en-US";
+    return new Promise(r=>{ u.onend=r; speechSynthesis.speak(u); });
+  } catch(e){ console.warn("WebSpeech error", e); }
+}
+window.__speakLocal = awSpeak;
+
+/* ================== Welcome Screen ================== */
+function AW_WelcomeScreen({ onStart }){
+  const [profiles,setProfiles]=React.useState(()=>awLoadProfiles().sort((a,b)=>b.lastPlayed-a.lastPlayed));
+  const [tab,setTab]=React.useState(profiles.length?"existing":"new");
+  const [name,setName]=React.useState(awGetSavedName());
+  const [avatar,setAvatar]=React.useState(AW_AVATAR_EMOJI[Math.floor(Math.random()*AW_AVATAR_EMOJI.length)]);
+  const canStart = name.trim().length>=2;
+  function handleStart(e){ e.preventDefault(); if(!canStart) return; const rec=awAddOrUpdateProfile(name.trim(),avatar); setProfiles(awLoadProfiles().sort((a,b)=>b.lastPlayed-a.lastPlayed)); onStart&&onStart(rec); }
+  function pickExisting(p){ setName(p.name); setAvatar(p.avatar||"🦊"); handleStart(new Event("submit")); }
+  React.useEffect(()=>{ if (window.lucide) window.lucide.createIcons(); },[tab,profiles,name,avatar]);
+  return (
+    <main className="app-shell grid place-items-center px-4 py-6">
+      <div className="welcome-card bg-white/80 backdrop-blur rounded-2xl shadow-xl p-6 sm:p-8 w-full max-w-[720px]">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="font-bold text-2xl">Charlie’s Animal Words</h1>
+          <span className="text-3xl select-none" aria-label="avatar">{avatar}</span>
+        </div>
+        <div className="inline-flex bg-gray-100 rounded-xl p-1 mb-6">
+          <button className={"px-3 py-1 rounded-lg text-sm font-semibold "+(tab==='new'?'bg-emerald-600 text-white':'')} onClick={()=>setTab('new')}>New Player</button>
+          <button className={"px-3 py-1 rounded-lg text-sm font-semibold "+(tab==='existing'?'bg-emerald-600 text-white':'')} onClick={()=>setTab('existing')} disabled={!profiles.length} title={!profiles.length?"No saved players yet":""}>Existing Player</button>
+        </div>
+        {tab==='existing'?(
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            {profiles.length===0 && <div className="text-slate-500">No saved players yet.</div>}
+            {profiles.map((p,i)=>(
+              <button key={i} onClick={()=>pickExisting(p)} className="flex items-center gap-3 p-3 rounded-xl border transition hover:border-emerald-500 text-left">
+                <span className="text-2xl">{p.avatar||"🦊"}</span>
+                <div className="min-w-0">
+                  <div className="font-semibold truncate">{p.name}</div>
+                  <div className="text-xs text-slate-500">Last played {new Date(p.lastPlayed).toLocaleDateString()}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ):(
+          <form onSubmit={handleStart} className="space-y-4">
+            <label className="block text-sm font-medium text-slate-600">Choose your avatar</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {AW_AVATAR_EMOJI.map((e,i)=>(
+                <button type="button" key={i} onClick={()=>setAvatar(e)}
+                  className={"rounded-xl border px-3 py-2 "+(e===avatar?"border-emerald-500 ring-1 ring-emerald-500":"border-slate-200")} aria-label={"avatar "+(i+1)}>{e}</button>
+              ))}
+            </div>
+            <label className="block text-sm font-medium text-slate-600">Player name</label>
+            <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name"
+              className="block w-full rounded-xl border px-4 py-3 bg-slate-50 focus:ring-2 focus:ring-emerald-400" maxLength={30} autoFocus />
+            <div className="flex justify-end">
+              <button type="submit" disabled={!canStart}
+                className={"rounded-xl px-5 py-3 font-semibold flex items-center gap-2 "+(canStart?"bg-emerald-600 text-white hover:bg-emerald-700":"bg-slate-200 text-slate-500 cursor-not-allowed")}>
+                <i data-lucide="play" className="w-5 h-5"></i> Start Playing
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </main>
+  );
+}
 
 /* ================== AW: Local Profiles (no Firebase) ================== */
 const AW_AVATAR_EMOJI = ["🦊","🦁","🐯","🐻","🐼","🐨","🐵","🦝","🦓","🦒","🦘","🦭","🦥","🦔","🦅","🦉","🦩","🦚"];
@@ -3127,24 +3239,8 @@ const AnimalReadingApp = () => {
             </div>
         );
     };
-
-    const ApiKeyScreen = () => (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-            <div className="bg-white border border-gray-200 p-8 rounded-3xl shadow-xl max-w-md w-full text-center">
-                <h1 className="text-3xl font-bold text-gray-800 mb-4">API Setup</h1>
-
-                <p className="text-gray-600 mb-6">
-                    Enter your **Gemini API Key** to enable **Animal Image Generation** and **High-Quality Voice**. This key will be **permanently stored** with your profile.
-                </p>
-
-                <div className="relative mb-4">
-                    <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                        type="password" class="api-key"
-                        value={apiKeyInput}
-                        onChange={(e) => {
-                            setApiKeyInput(e.target.value.trim());
-                            setApiError(null);
+    /* AW_WelcomeScreen removed: using local profile welcome */
+setApiError(null);
                         }}
                         className="welcome-input api-key" placeholder="Enter your API Key here"
                         className={`w-full text-lg p-3 pl-12 rounded-xl border bg-gray-100 border-gray-300 text-gray-800 placeholder-gray-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none ${apiError ? 'border-red-500' : ''}`}
@@ -3175,17 +3271,8 @@ const AnimalReadingApp = () => {
             </div>
         </div>
     );
-
-    const CachingScreen = () => {
-        const [progress, setProgress] = useState(0);
-        const [statusMessage, setStatusMessage] = useState("Preparing Assets...");
-        const [isCachingRunning, setIsCachingRunning] = useState(false);
-        const isMounted = useRef(true);
-
-        useEffect(() => {
-            isMounted.current = true;
-            return () => { isMounted.current = false; };
-        }, []);
+    /* CachingScreen removed: offline prefetch happens silently */
+}, []);
 
         useEffect(() => {
             if (cacheStatus === 1 && userApiKey && !isCachingRunning && isMounted.current) {
@@ -3674,9 +3761,9 @@ const AnimalReadingApp = () => {
         case 'setup':
             return <ProfileSetupScreen />;
         case 'apikey':
-            return <ApiKeyScreen />;
+            return <AW_WelcomeScreen onStart={(rec)=>{ setPlayerName(rec.name); setAppView('home'); }} />;
         case 'caching':
-            return <CachingScreen />;
+            return <AW_WelcomeScreen onStart={(rec)=>{ setPlayerName(rec.name); setAppView('home'); }} />;
         case 'welcome': return <AW_WelcomeScreen onStart={()=>setAppView('game')} />;
         case 'game':
             return <GameScreen />;
@@ -3879,5 +3966,6 @@ window.addEventListener('load', ()=>{ try { window.__precacheKnownImages?.(); } 
       };
     })();
   </script>
+
 </body>
 </html>
