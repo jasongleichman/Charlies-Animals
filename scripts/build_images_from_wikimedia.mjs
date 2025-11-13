@@ -30,13 +30,6 @@ async function fetchBuffer(url) {
   return Buffer.from(await r.arrayBuffer());
 }
 
-
-async function fetchBuffer(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-  return Buffer.from(await r.arrayBuffer());
-}
-
 // --------- main ----------
 async function main() {
   const args = parseArgs();
