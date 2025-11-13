@@ -49,7 +49,7 @@ const jsContent = fs.readFileSync(dataPath, "utf8");
 
 /**
  * [NEW] Collects all unique text strings from all databases
- */
+ 
 function collectAllText({ animals, sightWords, sentences }) {
   const textSet = new Set();
 // 1. Animal Names
@@ -85,7 +85,7 @@ function collectAllText({ animals, sightWords, sentences }) {
   });
 
   return Array.from(textSet);
-}
+}*/
 
 
 // -------- AWS POLLY --------
