@@ -83,6 +83,7 @@ async function main() {
       imagesMap[slug] = `./assets/${rel}`;
       console.log(`✅ exists: ${name}`);
       existing++;
+      continue;
     } else {
       console.log(`🚫 no-image: ${name}`);
       missing++;
