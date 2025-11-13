@@ -34,16 +34,19 @@ jobs:
 
           node scripts/build_tts_polly.cjs --db=docs/index.html --out=./docs/assets --rate=1000 --voice=Joanna
 
+      # Commit only if something actually changed
       - name: Commit & push if changes
         shell: bash
         run: |
-          git add docs/assets/tts 2>/dev/null || true
+          # Use 'git add -A' to ensure ALL modified/new/deleted files are staged
+          git add -A 2>/dev/null || true 
           if git diff --cached --quiet; then
             echo "No staged changes to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(tts): add/update Polly audio (diff-only)"
-          git pull --rebase  # Fixes the rejected push error
+          git commit -m "chore(assets): add/update images and TTS (diff-only)"
+          # Use --autostash to safely handle any unexpected unstaged files during rebase
+          git pull --rebase --autostash 
           git push
