@@ -1,8 +1,3 @@
-/* ================== APP DATA ================== */
-// Contains all the static data for the application.
-// This file is loaded before the main app script in index.html.
-
-// --- ANIMAL DATABASE ---
 window.ANIMAL_DATABASE = [
   {
     name: 'Fennec Fox',
@@ -4013,7 +4008,7 @@ window.sightWordsData = [
     { word: 'been', options: ['been', 'bend', 'bind'], correct: 'been' }, 
     { word: 'called', options: ['called', 'cold', 'can'], correct: 'called' },
     { word: 'who', options: ['who', 'how', 'when'], correct: 'who' },
-    { word: 'soil', options: ['oil', 'old', 'boil'], correct: 'oil' },
+    { word: 'soil', options: ['oil', 'old', 'boil'], correct: 'soil' },
     { word: 'sit', options: ['sit', 'sat', 'six'], correct: 'sit' },
     { word: 'now', options: ['now', 'how', 'no'], correct: 'now' },
     { word: 'find', options: ['find', 'fine', 'kind'], correct: 'find' },
