@@ -30,16 +30,25 @@ async function fetchBuffer(url) {
   return Buffer.from(await r.arrayBuffer());
 }
 
+
+async function fetchBuffer(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return Buffer.from(await r.arrayBuffer());
+}
+
 // --------- main ----------
 async function main() {
   const args = parseArgs();
   const repoRoot = path.resolve(__dirname, ".."); // scripts/.. -> repo root
   const outDir = path.resolve(repoRoot, args.out);
+  const overwrite = args.overwrite === 'true' || args.overwrite === true;
   const imagesDir = path.join(outDir, "images");
-
+ 
   // ensure folders
   fs.mkdirSync(outDir, { recursive: true });
   fs.mkdirSync(imagesDir, { recursive: true });
+  
 
   // --- FIX 1: Point to the new data file location ---
   const dataPath = path.join(outDir, "app-data.js");
@@ -83,11 +92,9 @@ async function main() {
       imagesMap[slug] = `./assets/${rel}`;
       console.log(`✅ exists: ${name}`);
       existing++;
-      continue;
-    } else {
-      console.log(`🚫 no-image: ${name}`);
-      missing++;
-    continue;
+      if (!overwrite) {
+        continue; // Skip the remote download logic if the local file exists and we are not overwriting
+      }
      }
 
     // --- NEW: Download remote image if URL is available ---
