@@ -1071,7 +1071,7 @@ const AnimalReadingApp = () => {
         const currentContent = gameMode === 'words' ? shuffledWords : shuffledSentences;
         const currentItem = currentContent[currentIndex];
         
-        const autoPlayFlag = useRef(false);
+        // Removed autoPlayFlag = useRef(false); as it's no longer needed for auto-play
        
         if (!currentItem) { return <LoadingScreen />; }
         const mainText = currentItem.word || currentItem.sentence;
@@ -1081,18 +1081,8 @@ const AnimalReadingApp = () => {
             if (!animal) return <LoadingScreen />;
             const totalFacts = (window.ANIMAL_DATABASE || []).find(a => a.name === animal.name)?.facts.length || 10;
            
-            // FIX: Auto-play logic using useRef to ensure single execution per modal appearance
-            useEffect(() => {
-                if (showRewardModal && animalData && !autoPlayFlag.current) {
-                    const factToPlay = animalData.facts[animalData.earnedFactIndex - 1];
-                    if (factToPlay) {
-                        speak(factToPlay);
-                        autoPlayFlag.current = true;
-                    }
-                }
-                if (!showRewardModal) { autoPlayFlag.current = false; }
-            }, [showRewardModal, animalData, speak]);
-
+            // FIX: Auto-play logic (useEffect) is removed entirely here.
+            
             if (showVideoModal) {
                 return (
                     <VideoRewardModal
@@ -1115,7 +1105,7 @@ const AnimalReadingApp = () => {
                                     Total Facts Earned: <span className="font-semibold text-emerald-600">{`${animal.earnedFactIndex} / ${totalFacts}`}</span>
                                 </p>
                                 
-                                {/* FIX: Image moved above "New Fact" text */}
+                                {/* Image moved above "New Fact" text */}
                                 <div className="h-48 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden shadow-inner">
                                     {isLoading ? (
                                         <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
@@ -1131,7 +1121,7 @@ const AnimalReadingApp = () => {
                                
                                 <h4 className="text-lg font-semibold text-gray-700 mt-4 pt-4 border-t">New Fact:</h4>
                                 
-                                {/* FIX: Green Fact Box moved below "New Fact" text */}
+                                {/* Green Fact Box moved below "New Fact" text. Now explicitly relies on click. */}
                                 <button
                                     onClick={() => speak(animal.facts[animal.earnedFactIndex - 1])}
                                     disabled={isSpeaking}
