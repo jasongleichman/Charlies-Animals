@@ -24,6 +24,12 @@ function parseArgs() {
   return args;
 }
 
+async function fetchBuffer(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return Buffer.from(await r.arrayBuffer());
+}
+
 // --------- main ----------
 async function main() {
   const args = parseArgs();
@@ -80,7 +86,28 @@ async function main() {
     } else {
       console.log(`🚫 no-image: ${name}`);
       missing++;
-    }
+    continue;
+     }
++
++    // --- NEW: Download remote image if URL is available ---
++    const animalData = animals.find(a => a.name.trim() === name);
++    const imageUrl = animalData?.image || animalData?.img || animalData?.photo || (animalData?.picture?.url);
++
++    if (imageUrl && /^https?:\/\//i.test(imageUrl)) {
++        try {
++            const buf = await fetchBuffer(imageUrl);
++            await fs.promises.writeFile(abs, buf);
++            imagesMap[slug] = `./assets/${rel}`;
++            console.log(`🖼️ downloaded: ${name}`);
++            existing++;
++        } catch (e) {
++            console.log(`🚫 no-image (download failed): ${name} - ${e.message}`);
++            missing++;
++        }
++    } else {
++        console.log(`🚫 no-image (url missing): ${name}`);
++        missing++;
++    }
   }
 
   // write docs/images_map.json (for debugging/inspection)
