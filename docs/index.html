@@ -658,7 +658,7 @@ const FactModal = ({ animal, factsEarned, totalFacts, onClose, speak, isSpeaking
 
     // NEW unified click handler for fact rows to prevent modal closure and handle new logic
     const handleFactClick = useCallback((e, fact, index, isUnlocked, isCurrent) => {
-        // Stop propagation at the fact row level to prevent the outside-click logic (even if it were still there)
+        // Stop propagation at the fact row level to prevent the outside-click logic
         e.stopPropagation();
         if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
         
