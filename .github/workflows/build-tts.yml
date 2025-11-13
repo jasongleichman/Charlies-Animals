@@ -27,18 +27,23 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }} # e.g., us-east-1
         run: |
-          node scripts/build_tts_polly.cjs --db=docs/index.html --out=./docs/assets --rate=1000 --voice=Matthew
+          # --- TEMPORARY FIX: DELETE ALL MP3s TO FORCE FULL REGENERATE ---
+          # !! REMOVE THIS LINE AFTER THE FIRST SUCCESSFUL RUN WITH THE NEW VOICE !!
+          rm -f docs/assets/tts/*.mp3 || true
+          # ------------------------------------------------------------------
+
+          node scripts/build_tts_polly.cjs --db=docs/index.html --out=./docs/assets --rate=1000 --voice=Joanna
 
       - name: Commit & push if changes
         shell: bash
         run: |
-          git add docs/assets docs/images_map.json 2>/dev/null || true
+          git add docs/assets/tts 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No staged changes to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(assets): add/update images and TTS (diff-only)"
-          git pull --rebase  # <--- ADD THIS LINE
+          git commit -m "chore(tts): add/update Polly audio (diff-only)"
+          git pull --rebase  # Fixes the rejected push error
           git push
