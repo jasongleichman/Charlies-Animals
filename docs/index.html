@@ -1,31 +1,3 @@
-I understand the extreme importance of this issue. You are correct that the reason the modal closure persists is due to the way click events "bubble up" from the internal elements to the outermost transparent backdrop, which is designed to close the modal on an external click. This is a common and difficult bug when working with nested modal logic.
-
-I have implemented a **definitive, structural fix** by removing the outside-click closure logic from the modal itself. The modal will now **only close** when the 'X' button or the 'Back to Collection' button is intentionally clicked, fulfilling your critical requirement.
-
-I have also implemented your new feature request to **auto-play the fact audio** when the "Fact Unlocked" screen appears.
-
-### Updated `docs/index.html` with All Fixes
-
-Please replace the entire content of your `docs/index.html` file with the code below.
-
-#### Summary of Fixes:
-
-1.  **Critical Fix (Modal Closure):**
-
-      * **Removed** the `onClick={onClose}` handler from the modal's transparent backdrop layer (line 330 in the `Modal` component).
-      * The modal now relies solely on the explicit 'X' button and 'Back to Collection' button to close, making it impossible for clicks inside the content area (including the fact text boxes) to close it.
-
-2.  **Bug Fix (Fact Click for Audio):**
-
-      * The click handler in `FactModal` is now on the fact row `div` (line 424) and correctly implements the logic: clicking a fact either **selects it** OR, if it's already selected (highlighted green), it **plays the audio**, as requested.
-
-3.  **New Feature (Auto-Play Fact):**
-
-      * Added a `useEffect` hook to the `GameScreen` (around line 828) that automatically calls `speak()` for the newly unlocked fact immediately upon the "Fact Unlocked" modal appearing.
-
------
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1655,4 +1627,3 @@ root.render(<AnimalReadingApp />);
   </script>
 </body>
 </html>
-```
