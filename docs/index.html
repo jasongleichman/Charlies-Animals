@@ -341,7 +341,7 @@ const useAppState = () => {
             animal => !(profile.collectedAnimals || []).includes(animal.name)
         );
         const animalToReward = uncollected.length > 0
-            ? animalDatabase[Math.floor(Math.random() * uncollected.length)]
+            ? uncollected[Math.floor(Math.random() * uncollected.length)]
             : animalDatabase[Math.floor(Math.random() * animalDatabase.length)];
         if (!animalToReward) {
             setIsLoading(false);
