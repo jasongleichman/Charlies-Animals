@@ -1888,10 +1888,10 @@ window.sentencesData = [
 
 // --- VIDEO DATABASE (Simple placeholders for embedding) ---
 window.VIDEO_DATABASE = [
-    { title: "Animal Fact Video 1: Fennec Foxes", url: "https://www.youtube.com/embed/dQw4w9WgXcQ?controls=0" }, 
-    { title: "Animal Fact Video 2: Axolotl Regeneration", url: "https://youtube/embed/es5NamAO0qU?si=u4GLRnqBXHmNjktb?controls=0" }, 
-    { title: "Animal Fact Video 3: Goblin Shark Jaws", url: "https://youtube/embed/fYpn2u2Wag4?si=Bt1k7qULJDZpgCO_?controls=0" }, 
-    { title: "Animal Fact Video 4: Pangolin Armor", url: "https://youtube/embed/5vfe_pTlGEQ?si=Z-Hnn7CmQ3Musix1?controls=0" }, 
-    { title: "Animal Fact Video 5: Okapi's Long Tongue", url: "https://youtube/embed/4j5-4rjrbqM?si=3xf129zUgJ2BZnFD?controls=0" }, 
-    { title: "Animal Fact Video 6: Komodo Dragon Venom", url: "https://youtube/embed/pFaSswGnT0I?si=fThm0AI63VF6OSRN=0" }, 
+    { title: "Animal Fact Video 1: Fennec Foxes", url: "https://youtu.be/5Juw9y46ruk?si=hcWlo8H0OnmJzaw5" }, 
++    { title: "Animal Fact Video 2: Axolotl Regeneration", url: "https://www.youtube.com/embed/es5NamAO0qU?si=u4GLRnqBXHmNjktb&controls=0" }, 
++    { title: "Animal Fact Video 3: Goblin Shark Jaws", url: "https://www.youtube.com/embed/fYpn2u2Wag4?si=Bt1k7qULJDZpgCO_&controls=0" }, 
++    { title: "Animal Fact Video 4: Pangolin Armor", url: "https://www.youtube.com/embed/5vfe_pTlGEQ?si=Z-Hnn7CmQ3Musix1&controls=0" }, 
++    { title: "Animal Fact Video 5: Okapi's Long Tongue", url: "https://www.youtube.com/embed/4j5-4rjrbqM?si=3xf129zUgJ2BZnFD&controls=0" }, 
++    { title: "Animal Fact Video 6: Komodo Dragon Venom", url: "https://www.youtube.com/embed/pFaSswGnT0I?si=fThm0AI63VF6OSRN&controls=0" },
 ];
