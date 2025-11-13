@@ -32,12 +32,13 @@ jobs:
       - name: Commit & push if changes
         shell: bash
         run: |
-          git add docs/assets/tts 2>/dev/null || true
+          git add docs/assets docs/images_map.json 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No staged changes to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(tts): add/update Polly audio (diff-only)"
+          git commit -m "chore(assets): add/update images and TTS (diff-only)"
+          git pull --rebase  # <--- ADD THIS LINE
           git push
