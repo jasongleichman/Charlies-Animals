@@ -36,14 +36,15 @@ jobs:
         run: |
           node scripts/build_images_from_wikimedia.mjs --db=docs/index.html --out=./docs/assets
 
-      # ⬇️ FINAL: Build all TTS files with Eleven Labs (Dual Voice)
-      - name: Build TTS (Forced Regeneration, Eleven Labs)
+      # ⬇️ FINAL: Build only Sight Words and Sentences (Adam voice)
+      - name: Build TTS (Words/Sentences Only, Eleven Labs)
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         run: |
-          # 🚨 FORCE REGENERATION: Delete existing MP3s to ensure the new Eleven Labs voices are used.
+          # 🚨 Delete existing MP3s to force regeneration of *all* audio.
           rm -f docs/assets/tts/*.mp3 || true
-          node scripts/build_tts_elevenlabs.cjs --db=docs/index.html --out=./docs/assets --rate=1000
+          # Run script with scope=words to process only words/sentences
+          node scripts/build_tts_elevenlabs.cjs --db=docs/index.html --out=./docs/assets --rate=1000 --scope=words
 
       # Commit only if something actually changed
       - name: Commit & push if changes
