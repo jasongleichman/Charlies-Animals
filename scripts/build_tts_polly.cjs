@@ -66,7 +66,13 @@ function collectAllText({ animals, sightWords, sentences }) {
 
   animals.forEach(a => {
     if (a.name) textSet.add(a.name);
-    (a.facts || []).forEach(f => textSet.add(f));
+    // Need to safely handle the fact array, especially if they contain unescaped quotes from data issues
+    (a.facts || []).forEach(f => {
+        // Only add non-empty strings
+        if (typeof f === 'string' && f.trim().length > 0) {
+            textSet.add(f);
+        }
+    });
   });
 
   sightWords.forEach(w => textSet.add(w.word));
