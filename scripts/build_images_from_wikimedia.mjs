@@ -28,67 +28,67 @@ async function fetchBuffer(url) {
 }
 // --- CENTRALIZED IMAGE URLS (VERIFIED & CORRECTED) ---
 const WIKIMEDIA_SOURCES = {
-  "Goliath Bird-Eater": "https://upload.wikimedia.org/wikipedia/commons/0/0a/Goliath_birdeater.jpg",
-  "Glass Lizard": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Slender_glass_lizard.jpg",
+  "Goliath Bird-Eater": "https://upload.wikimedia.org/wikipedia/commons/7/74/Goliath_birdeater.jpg",
+  "Glass Lizard": "https://upload.wikimedia.org/wikipedia/commons/4/4d/Eastern_Glass_Lizard.jpg",
   "Giant Weta": "https://upload.wikimedia.org/wikipedia/commons/7/73/Giant_weta_tucked_into_a_hole_in_a_tree_%28Tiritiri_Matangi%29.jpg",
-  "Kiwi Bird": "https://upload.wikimedia.org/wikipedia/commons/3/3e/EB1911_-_Kiwi.jpg",
-  "Thorny Devil": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Thornydevil.jpg",
-  "Leafcutter Ant": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Leafcutter_ant_soldier_%2881794%29.jpg",
+  "Kiwi Bird": "https://upload.wikimedia.org/wikipedia/commons/5/5c/Kiwifugl.jpg",
+  "Thorny Devil": "https://upload.wikimedia.org/wikipedia/commons/4/40/Thorny_Devil.jpg",
+  "Leafcutter Ant": "https://upload.wikimedia.org/wikipedia/commons/8/81/Leafcutter_ant.jpg",
   "Gibbon": "https://upload.wikimedia.org/wikipedia/commons/c/c5/White-Handed_Gibbon_%28Hylobates_lar%29_%282854166549%29.jpg",
-  "Tapir": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Baird%27s_tapir_mother_with_baby_%2892151%29.jpg",
+  "Tapir": "https://upload.wikimedia.org/wikipedia/commons/5/57/Bairds_Tapir.jpg",
   "Tawny Frogmouth": "https://upload.wikimedia.org/wikipedia/commons/c/cc/Tawny_Frogmouth_%28Podargus_strigoides%29_%282854232223%29.jpg",
   "Wanderer Butterfly": "https://upload.wikimedia.org/wikipedia/commons/3/30/Monarch_Butterfly.%28Danaus_plexippus%29_%2814256022010%29.jpg",
   "Cuttlefish": "https://upload.wikimedia.org/wikipedia/commons/9/91/Cuttlefish_%285381129320%29.jpg",
   "Rhinoceros": "https://upload.wikimedia.org/wikipedia/commons/c/c8/White_Rhinoceros_%289114161448%29.jpg",
   "African Bush Elephant": "https://upload.wikimedia.org/wikipedia/commons/3/37/African_Bush_Elephant.jpg",
-  "Bison": "https://upload.wikimedia.org/wikipedia/commons/8/8e/American_bison_k5680-1.jpg",
+  "Bison": "https://upload.wikimedia.org/wikipedia/commons/8/8d/American_bison_k5680-1.jpg",
   "Grizzly Bear": "https://upload.wikimedia.org/wikipedia/commons/9/93/Grizzly_bear_brown_bear.jpg",
   "Humpback Whale": "https://upload.wikimedia.org/wikipedia/commons/f/fb/Humpback_Whale_Underwater_%2837209287981%29.jpg",
   "Cheetah": "https://upload.wikimedia.org/wikipedia/commons/5/54/Cheetah.JPG",
   "Orangutan": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Orangutan_01.jpg",
   "Snow Leopard": "https://upload.wikimedia.org/wikipedia/commons/1/10/The_endangered_Snow_Leopard_%2813310647514%29.jpg",
-  "Blue Jay": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Cyanocitta-cristata-004.jpg",
+  "Blue Jay": "https://upload.wikimedia.org/wikipedia/commons/0/03/Blue_Jay_%28210140531%29.jpeg",
   "Greenland Shark": "https://upload.wikimedia.org/wikipedia/commons/3/39/Greenland_shark_profile.jpg",
-  "Koala": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Koala_in_Zoo_Duisburg.jpg",
-  "Beluga Whale": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Beluga_Whale_Kissing_its_trainer.jpg",
+  "Koala": "https://upload.wikimedia.org/wikipedia/commons/2/21/Cutest_Koala.jpg",
+  "Beluga Whale": "https://upload.wikimedia.org/wikipedia/commons/9/98/Beluga_whale.png",
   "Golden Poison Frog": "https://upload.wikimedia.org/wikipedia/commons/e/ed/Golden_Poison_Dart_Frog_1_%2814412444930%29.jpg",
   "Opossum": "https://upload.wikimedia.org/wikipedia/commons/2/27/Opossum_2.jpg",
-  "Sloth": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Bradypus.jpg",
-  "Sea Otter": "https://upload.wikimedia.org/wikipedia/commons/0/0a/Sea-otter-morro-bay_13.jpg",
-  "Secretary Bird": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Secretary_bird_Mara_for_WC.jpg",
-  "Capuchin Monkey": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Capuchin_monkey_in_cage_at_zoo%2C_Chisinau_Zoo.tif",
+  "Sloth": "https://upload.wikimedia.org/wikipedia/commons/3/3f/3_toed_sloth.jpg",
+  "Sea Otter": "https://upload.wikimedia.org/wikipedia/commons/7/77/Sea_Otters.jpg",
+  "Secretary Bird": "https://upload.wikimedia.org/wikipedia/commons/f/f4/Secretary_bird_%28Sagittarius_serpentarius%29_2.jpg",
+  "Capuchin Monkey": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Capuchin_Monkey_%288454333789%29.jpg",
   "Bumblebee Bat": "https://upload.wikimedia.org/wikipedia/commons/5/5a/Craseonycteris_thonglongyai.png",
-  "Armadillo": "https://upload.wikimedia.org/wikipedia/commons/4/4e/Six-banded_armadillo_%28Euphractus_sexcinctus%29.JPG",
-  "King Cobra": "https://upload.wikimedia.org/wikipedia/commons/9/9e/King_cobra_face.jpg",
-  "Wolverine": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Wolverine_%28Gulo_gulo%29%2C_Korkeasaari.JPG",
+  "Armadillo": "https://upload.wikimedia.org/wikipedia/commons/b/b4/Nine-banded_Armadillo.jpg",
+  "King Cobra": "https://upload.wikimedia.org/wikipedia/commons/a/a9/King-Cobra.jpg",
+  "Wolverine": "https://upload.wikimedia.org/wikipedia/commons/c/c6/Wolverine.jpg",
   "Three-Banded Armadillo": "https://upload.wikimedia.org/wikipedia/commons/f/fb/Three_Banded_Armadillo.jpg",
   "Nine-Banded Armadillo": "https://upload.wikimedia.org/wikipedia/commons/b/b4/Nine-banded_Armadillo.jpg",
   "White-Faced Saki Monkey": "https://upload.wikimedia.org/wikipedia/commons/4/48/Male_White_Face_Saki_at_Chester_Zoo_%2815155867794%29.jpg",
-  "Megalodon": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Carcharocles_megalodon_%28Agassiz%2C_1843%29_3.jpg",
-  "Tasmanian Tiger": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Tasmanian_Tiger_%28Thylacinus_cynocephalus%29.png",
-  "Dire Wolf": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Perot_Museum_dire_wolf_2.jpg",
-  "Dodo": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Dronte_dodo_Raphus_cucullatus.jpg",
+  "Megalodon": "https://upload.wikimedia.org/wikipedia/commons/1/1f/Carcharodon_megalodon.jpg",
+  "Tasmanian Tiger": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Tasmanian_tiger.jpg",
+  "Dire Wolf": "https://upload.wikimedia.org/wikipedia/commons/8/80/Dire_Wolf.jpg",
+  "Dodo": "https://upload.wikimedia.org/wikipedia/commons/e/e1/Dodo_1.JPG",
   "Passenger Pigeon": "https://upload.wikimedia.org/wikipedia/commons/3/34/Ectopistes_migratorius_%28passenger_pigeon%29_1.jpg",
-  "Smilodon": "https://upload.wikimedia.org/wikipedia/commons/0/0a/Cr%C3%A2ne_de_smilodon_expos%C3%A9_au_Museu_de_Zoologia_da_Universidade_de_S%C3%A3o_Paulo%2C_Brazil.jpg",
+  "Smilodon": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Smilodon.png",
   "Woolly Mammoth": "https://upload.wikimedia.org/wikipedia/commons/6/65/Woolly_mammoth.jpg",
-  "Quagga": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Equus_quagga_quagga_lithograph.jpg",
+  "Quagga": "https://upload.wikimedia.org/wikipedia/commons/d/d2/Quagga_photo.jpg",
   "Great Auk": "https://upload.wikimedia.org/wikipedia/commons/e/e1/341_Great_Auk.jpg",
   "Steller's Sea Cow": "https://upload.wikimedia.org/wikipedia/commons/1/13/Steller%27s_Sea_Cow.jpg",
   "Irish Elk": "https://upload.wikimedia.org/wikipedia/commons/3/3b/Megaloceros_giganteus_Irish_elk_skeleton_%28Pleistocene%29_%2815443938885%29.jpg",
   "Moa": "https://upload.wikimedia.org/wikipedia/commons/2/28/Giant_moa.jpg",
-  "Aurochs": "https://upload.wikimedia.org/wikipedia/commons/a/ae/Aurochs_reconstruction.jpg",
+  "Aurochs": "https://upload.wikimedia.org/wikipedia/commons/1/1a/Aurochs_animal-bw.png",
   "Giant Ground Sloth": "https://upload.wikimedia.org/wikipedia/commons/2/21/WLA_hmns_Giant_ground_sloth.jpg",
-  "Haast's Eagle": "https://upload.wikimedia.org/wikipedia/commons/0/0f/Giant_Haasts_eagle_attacking_New_Zealand_moa.jpg",
-  "Glyptodon": "https://upload.wikimedia.org/wikipedia/commons/0/0a/Glyptodon_clavipes_01.jpg",
+  "Haast's Eagle": "https://upload.wikimedia.org/wikipedia/commons/b/be/Giant_Haasts_eagle.jpg",
+  "Glyptodon": "https://upload.wikimedia.org/wikipedia/commons/a/a4/Glyptodon-1.jpg",
   "Cave Bear": "https://upload.wikimedia.org/wikipedia/commons/3/35/Ursus_spelaeus_cave_bear.jpg",
-  "American Mastodon": "https://upload.wikimedia.org/wikipedia/commons/9/9e/American_Mastodon_%28Mammut_americanum%29.jpg",
-  "Arthropleura": "https://upload.wikimedia.org/wikipedia/commons/8/8e/Arthropleura_Reconstruction.jpg",
-  "Titanoboa": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Titanoboa_par_Florent_Riv%C3%A8re.jpg",
-  "Spinosaurus": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Spinosaurus_aegyptiacus_3.png",
-  "Dunkleosteus": "https://upload.wikimedia.org/wikipedia/commons/8/8f/Dunkleosteus_model_AMNH.jpg",
-  "Meganeura": "https://upload.wikimedia.org/wikipedia/commons/3/3a/Meganeura_monyi_type.jpg",
-  "Hallucigenia": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Hallucigenia_smithsonian.JPG",
-  "Anomalocaris": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Anomalocaris_canadensis_%28TMP_2023.003.0003%29%2C_Royal_Tyrrell_Museum%2C_Drumheller%2C_Alberta%2C_2025-07-13.jpg",
+  "American Mastodon": "https://upload.wikimedia.org/wikipedia/commons/b/b9/WLA_hmns_American_Mastodon_Mammut_america_3.jpg",
+  "Arthropleura": "https://upload.wikimedia.org/wikipedia/commons/2/2d/Arthropleura.png",
+  "Titanoboa": "https://upload.wikimedia.org/wikipedia/commons/2/2d/Titanoboa_NT.jpg",
+  "Spinosaurus": "https://upload.wikimedia.org/wikipedia/commons/8/89/Mounted_Spinosaurus.jpg",
+  "Dunkleosteus": "https://upload.wikimedia.org/wikipedia/commons/e/e5/Dunkleosteus.png",
+  "Meganeura": "https://upload.wikimedia.org/wikipedia/commons/8/81/Meganeura.png",
+  "Hallucigenia": "https://upload.wikimedia.org/wikipedia/commons/8/8d/Hallucigenia.jpg",
+  "Anomalocaris": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Anomalocaris_BW.jpg",
   "Giant Armadillo": "https://upload.wikimedia.org/wikipedia/commons/b/b3/Giant_armadillo.jpg"
 };
 // --------- main ----------
@@ -105,7 +105,6 @@ async function main() {
   const dataPath = path.join(path.dirname(args.db), 'assets', 'app-data.js'); // Assuming docs/index.html -> docs/assets/app-data.js
   if (!fs.existsSync(dataPath)) throw new Error(`Data file not found at expected path: ${dataPath}`);
   const dataContent = fs.readFileSync(dataPath, "utf8");
- 
   // Extract ANIMAL_DATABASE content by finding the raw array string
   const animalMatch = dataContent.match(/window\.ANIMAL_DATABASE\s*=\s*(\[[^]*?\]);/s);
   if (!animalMatch) throw new Error("Could not find window.ANIMAL_DATABASE in the script.");
@@ -122,7 +121,6 @@ async function main() {
   animals.forEach(a => {
       if (a.name) names.add(a.name.trim());
   });
- 
   const all = Array.from(names);
   console.log(`Found ${all.length} animals in ${path.basename(dataPath)}`);
   // build the images map for files that already exist
