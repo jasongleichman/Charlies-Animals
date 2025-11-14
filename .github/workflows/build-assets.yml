@@ -54,7 +54,7 @@ jobs:
       # node scripts/build_tts_polly.cjs --db=docs/index.html --out=./docs/assets --rate=1000 --voice=Joanna  AWS
 
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-        run: node scripts/build_tts_elevenlabs.cjs --db=docs/index.html --out=./docs/assets --rate=1000
+        node scripts/build_tts_elevenlabs.cjs --db=docs/index.html --out=./docs/assets --rate=1000
 
       # Commit only if something actually changed
       - name: Commit & push if changes
