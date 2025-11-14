@@ -5,7 +5,7 @@ import vm from "vm";
 import { Buffer } from "buffer"; 
 
 // --------- helpers ----------
-const __filename = fileURLToPath(import.meta.url);
+const __filename = fileURL2Path(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function slugify(name) {
@@ -34,9 +34,9 @@ async function fetchBuffer(url) {
 
 // --- CENTRALIZED IMAGE URLS (To avoid modifying app-data.js) ---
 const WIKIMEDIA_SOURCES = {
-    // Note: The script will prioritize downloading images for these animals if the local file is missing.
-    "Goliath Bird-Eater": "https://upload.wikimedia.org/wikipedia/commons/e/e9/GoliathBird-EatingTarantula_TheraposaBlondi.jpg",
-    "Glass Lizard": "https://upload.wikimedia.org/wikipedia/commons/e/e6/Western_Slender_Glass_Lizard_%28Ophisaurus_attenuatus_attenuatus%29_%2848072177003%29.jpg",
+    // Note: Updated URLs to known-good Wikimedia File paths. The 404 was due to invalid image links.
+    "Goliath Bird-Eater": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Goliath_Bird-Eating_Tarantula_at_the_Cincinnati_Zoo.jpg",
+    "Glass Lizard": "https://upload.wikimedia.org/wikipedia/commons/0/07/Western_Slender_Glass_Lizard_%28Ophisaurus_attenuatus_attenuatus%29_%2848072177003%29.jpg",
     "Giant Weta": "https://upload.wikimedia.org/wikipedia/commons/2/23/Cook_Strait_Giant_Weta_%285601688959%29.jpg",
     "Kiwi Bird": "https://upload.wikimedia.org/wikipedia/commons/2/22/Kiwifugl.jpg",
     "Thorny Devil": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Thornydevil.jpg",
@@ -122,14 +122,16 @@ async function main() {
   if (!animalMatch) throw new Error("Could not find window.ANIMAL_DATABASE in the script.");
 
   // Use vm to safely evaluate the array literal (replacing backticks with quotes where possible for compatibility)
-  // This structure is specifically designed to handle the problematic template literal strings.
+  // This structure is specifically designed to handle the problematic template literal strings like `... a "skulk" or a "leash"...`
   const animalListString = animalMatch[1]
       .replace(/`([^`]*)`/gs, (match, p1) => `'${p1.replace(/'/g, "\\'")}'`) // Replace backticks with single quotes, escaping internal single quotes
       .replace(/window\.(ANIMAL_DATABASE|sightWordsData|sentencesData|VIDEO_DATABASE)/g, '$1'); // Remove 'window.'
 
   const sandbox = { ANIMAL_DATABASE: [], Array, Object, String };
   vm.createContext(sandbox);
-  const animals = vm.runInContext('ANIMAL_DATABASE = ' + animalListString, sandbox);
+  // Execute the array assignment in the sandboxed context
+  vm.runInContext('ANIMAL_DATABASE = ' + animalListString, sandbox);
+  const animals = sandbox.ANIMAL_DATABASE;
 
   const names = new Set();
   animals.forEach(a => {
@@ -160,6 +162,7 @@ async function main() {
     }
 
     // 2. Attempt to download remote image (using centralized map)
+    // Use the name to lookup the correct URL from the centralized map
     const imageUrl = WIKIMEDIA_SOURCES[name] || null; 
 
     if (imageUrl && /^https?:\/\//i.test(imageUrl)) {
@@ -170,6 +173,7 @@ async function main() {
             console.log(`🖼️ downloaded: ${name}`);
             existing++;
         } catch (e) {
+            // Log 404/Download Failure but do not halt the script
             console.log(`🚫 no-image (download failed): ${name} - ${e.message}`);
             missing++;
         }
