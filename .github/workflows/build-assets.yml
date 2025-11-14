@@ -44,7 +44,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}   # e.g. us-east-1
         run: |
-          rm -f docs/assets/tts/*.mp3 || true
           node scripts/build_tts_polly.cjs --db=docs/index.html --out=./docs/assets --rate=1000 --voice=Joanna
 
       # Commit only if something actually changed
@@ -59,7 +58,5 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(assets): add/update images and TTS (diff-only)"
-          # Use --autostash to safely handle any unexpected unstaged files during rebase
-          git pull --rebase --autostash 
+          git commit -m "chore(assets): automated build and manifest update"
           git push
