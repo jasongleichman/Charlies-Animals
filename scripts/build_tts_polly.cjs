@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm"); // Added to read JS variables
 const { PollyClient, SynthesizeSpeechCommand } = require("@aws-sdk/client-polly");
+
 // -------- CLI ARGS --------
 function arg(key, def = null) {
   const hit = process.argv.find(a => a.startsWith(`--${key}=`));
@@ -16,6 +17,7 @@ const VOICE_ID  = arg("voice", "Joanna");
 
 const TTS_DIR   = path.join(OUT_ROOT, "tts");
 fs.mkdirSync(TTS_DIR, { recursive: true });
+
 // -------- UTILS --------
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const toSlug = (s) => (s || "")
@@ -27,22 +29,6 @@ const toSlug = (s) => (s || "")
  * Extracts all JS databases from the app-data.js file
  */
 function readDatabases(dataPath) {
-  // console.log(`Reading data from: ${dataPath}`);
-  
-  // Function to extract a global variable from the JS file
-  function getJsVariable(jsContent, varName) {
-    const match = jsContent.match(new RegExp(`window\\.${varName}\\s*=\\s*(\\[[\\s\\S]*?\\]);`));
-    if (!match) return [];
-    try {
-        // Use a temporary context to evaluate the array literal safely
-        return vm.runInContext(`(${match[1]})`, {});
-    } catch(e) {
-        console.error(`Failed to parse JS variable ${varName}:`, e.message);
-        return [];
-    }
-  }
-
-  // NOTE: Assuming the database file is app-data.js (or equivalent source)
   const appDataPath = path.join(path.dirname(dataPath), 'assets', 'app-data.js');
 
   let jsContent = '';
@@ -51,10 +37,21 @@ function readDatabases(dataPath) {
   } else {
       throw new Error(`Data file not found at expected path: ${appDataPath}`);
   }
+  
+  // Use a minimal sandbox context to evaluate the data file content safely
+  const sandbox = { 
+      window: { 
+          ANIMAL_DATABASE: [], 
+          sightWordsData: [], 
+          sentencesData: [],
+      } 
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(jsContent, sandbox);
 
-  const animals = getJsVariable(jsContent, "ANIMAL_DATABASE");
-  const sightWords = getJsVariable(jsContent, "sightWordsData");
-  const sentences = getJsVariable(jsContent, "sentencesData");
+  const animals = sandbox.window.ANIMAL_DATABASE;
+  const sightWords = sandbox.window.sightWordsData;
+  const sentences = sandbox.window.sentencesData;
 
   return { animals, sightWords, sentences };
 }
