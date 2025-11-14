@@ -2,14 +2,13 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm"); 
 const { Buffer } = require("buffer"); 
-// FIX: Require the module and correctly resolve the fetch function for CJS
 const nodeFetch = require('node-fetch');
 const fetch = nodeFetch.default || nodeFetch; 
 
 // -------- VOICE CONFIGURATION (Using specific Voice IDs) --------
-const VOICE_SIGHT_WORDS_ID = "qyFhaJEAwHR0eYLCmlUT"; // Adam - Engineering Professor
+const VOICE_SIGHT_WORDS_ID = "8SKmtcPfPSqEllqMebBk"; // Misti
 const VOICE_ANIMAL_FACTS_ID = "j9jfwdrw7BRfcR43Qohk"; // Frederick Surrey
-const MODEL_ID = "eleven_monolingual_v1"; // Recommended stable model
+const MODEL_ID = "eleven_multilingual_v2"; 
 
 // -------- CLI ARGS --------
 function arg(key, def = null) {
@@ -20,6 +19,8 @@ function arg(key, def = null) {
 const DB_PATH   = arg("db", "docs/index.html");
 const OUT_ROOT  = arg("out", "./docs/assets");
 const RATE_MS   = parseInt(arg("rate", "1000"), 10) || 1000;
+// NEW ARG: Scope to limit generation to 'words', 'facts', or 'all'
+const SCOPE_MODE = arg("scope", "all"); 
 
 const TTS_DIR   = path.join(OUT_ROOT, "tts");
 fs.mkdirSync(TTS_DIR, { recursive: true });
@@ -44,7 +45,6 @@ function readDatabases(dataPath) {
       throw new Error(`Data file not found at expected path: ${appDataPath}`);
   }
 
-  // Use a minimal sandbox context to evaluate the data file content safely
   const sandbox = { 
       window: { 
           ANIMAL_DATABASE: [], 
@@ -63,30 +63,33 @@ function readDatabases(dataPath) {
 }
 
 /**
- * Gathers all unique text strings and assigns a voice based on source.
+ * Gathers unique text strings based on SCOPE_MODE and assigns a voice.
  */
 function collectAllTextWithVoice({ animals, sightWords, sentences }) {
   const textMap = new Map();
 
   const addText = (text, voiceId) => {
     if (typeof text === 'string' && text.trim().length > 0) {
-        // If a duplicate exists, keep the existing voice (prevents overriding names/facts)
         if (!textMap.has(text)) {
             textMap.set(text, voiceId);
         }
     }
   };
 
-  // 1. Assign Frederick (VOICE_ANIMAL_FACTS_ID) to Animal Names and Facts
-  animals.forEach(a => {
-    addText(a.name, VOICE_ANIMAL_FACTS_ID);
-    (a.facts || []).forEach(f => addText(f, VOICE_ANIMAL_FACTS_ID));
-  });
+  if (SCOPE_MODE === 'facts' || SCOPE_MODE === 'all') {
+    // 1. Assign Frederick (ANIMAL_VOICE_ID) to Animal Names and Facts
+    animals.forEach(a => {
+      addText(a.name, VOICE_ANIMAL_FACTS_ID);
+      (a.facts || []).forEach(f => addText(f, VOICE_ANIMAL_FACTS_ID));
+    });
+  }
 
-  // 2. Assign Adam (VOICE_SIGHT_WORDS_ID) to Sight Words and Sentences
-  sightWords.forEach(w => addText(w.word, VOICE_SIGHT_WORDS_ID));
-  sentences.forEach(s => addText(s.sentence, VOICE_SIGHT_WORDS_ID));
-
+  if (SCOPE_MODE === 'words' || SCOPE_MODE === 'all') {
+    // 2. Assign Adam (SIGHT_WORD_VOICE_ID) to Sight Words and Sentences
+    sightWords.forEach(w => addText(w.word, VOICE_SIGHT_WORDS_ID));
+    sentences.forEach(s => addText(s.sentence, VOICE_SIGHT_WORDS_ID));
+  }
+  
   return Array.from(textMap.entries()).map(([text, voiceId]) => ({ text, voiceId }));
 }
 
@@ -135,7 +138,7 @@ async function main() {
   const { animals, sightWords, sentences } = readDatabases(DB_PATH);
   const allTextWithVoice = collectAllTextWithVoice({ animals, sightWords, sentences });
   
-  console.log(`\nFound ${allTextWithVoice.length} \nunique text strings to synthesize.`);
+  console.log(`\nFound ${allTextWithVoice.length} \nunique text strings to synthesize (Scope: ${SCOPE_MODE}).`);
   console.log(`Voice Map: Facts/Names=${VOICE_ANIMAL_FACTS_ID}, Words/Sentences=${VOICE_SIGHT_WORDS_ID}`);
 
   let created = 0, skipped = 0, failed = 0;
