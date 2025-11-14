@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm"); // Added to read JS variables
 const { PollyClient, SynthesizeSpeechCommand } = require("@aws-sdk/client-polly");
+const { Buffer } = require("buffer"); // Added Buffer to scope
 
 // -------- CLI ARGS --------
 function arg(key, def = null) {
@@ -30,14 +31,14 @@ const toSlug = (s) => (s || "")
  */
 function readDatabases(dataPath) {
   const appDataPath = path.join(path.dirname(dataPath), 'assets', 'app-data.js');
-
+  
   let jsContent = '';
   if (fs.existsSync(appDataPath)) {
       jsContent = fs.readFileSync(appDataPath, "utf8");
   } else {
       throw new Error(`Data file not found at expected path: ${appDataPath}`);
   }
-  
+
   // Use a minimal sandbox context to evaluate the data file content safely
   const sandbox = { 
       window: { 
@@ -47,6 +48,7 @@ function readDatabases(dataPath) {
       } 
   };
   vm.createContext(sandbox);
+  // Execute the data file content, defining window. variables in the sandbox
   vm.runInContext(jsContent, sandbox);
 
   const animals = sandbox.window.ANIMAL_DATABASE;
