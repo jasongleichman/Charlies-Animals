@@ -2,12 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm"); 
 const { Buffer } = require("buffer"); 
-const fetch = require('node-fetch'); // Requires npm install node-fetch
+const fetch = require('node-fetch');
 
-// -------- VOICE CONFIGURATION --------
-const VOICE_SIGHT_WORDS = "Adam"; 
-const VOICE_ANIMAL_FACTS = "Frederick"; 
-const MODEL_ID = "eleven_monolingual_v1"; // Stable model for consistent results
+// -------- VOICE CONFIGURATION (Using specific Voice IDs) --------
+const VOICE_SIGHT_WORDS_ID = "qyFhaJEAwHR0eYLCmlUT"; // Matt - The Young Professor 
+const VOICE_ANIMAL_FACTS_ID = "j9jfwdrw7BRfcR43Qohk"; // Frederick Surrey
+const MODEL_ID = "eleven_monolingual_v1"; // Recommended stable model
 
 // -------- CLI ARGS --------
 function arg(key, def = null) {
@@ -62,31 +62,30 @@ function readDatabases(dataPath) {
 
 /**
  * Gathers all unique text strings and assigns a voice based on source.
- * Returns an array of { text: string, voice: string }
  */
 function collectAllTextWithVoice({ animals, sightWords, sentences }) {
   const textMap = new Map();
 
-  const addText = (text, voice) => {
+  const addText = (text, voiceId) => {
     if (typeof text === 'string' && text.trim().length > 0) {
         // If a duplicate exists, keep the existing voice (prevents overriding names/facts)
         if (!textMap.has(text)) {
-            textMap.set(text, voice);
+            textMap.set(text, voiceId);
         }
     }
   };
 
-  // 1. Assign Frederick to Animal Names and Facts
+  // 1. Assign Frederick (ANIMAL_VOICE_ID) to Animal Names and Facts
   animals.forEach(a => {
-    addText(a.name, VOICE_ANIMAL_FACTS);
-    (a.facts || []).forEach(f => addText(f, VOICE_ANIMAL_FACTS));
+    addText(a.name, VOICE_ANIMAL_FACTS_ID);
+    (a.facts || []).forEach(f => addText(f, VOICE_ANIMAL_FACTS_ID));
   });
 
-  // 2. Assign Adam to Sight Words and Sentences
-  sightWords.forEach(w => addText(w.word, VOICE_SIGHT_WORDS));
-  sentences.forEach(s => addText(s.sentence, VOICE_SIGHT_WORDS));
+  // 2. Assign Adam (SIGHT_WORD_VOICE_ID) to Sight Words and Sentences
+  sightWords.forEach(w => addText(w.word, VOICE_SIGHT_WORDS_ID));
+  sentences.forEach(s => addText(s.sentence, VOICE_SIGHT_WORDS_ID));
 
-  return Array.from(textMap.entries()).map(([text, voice]) => ({ text, voice }));
+  return Array.from(textMap.entries()).map(([text, voiceId]) => ({ text, voiceId }));
 }
 
 
@@ -120,7 +119,7 @@ async function synthesizeToFile(text, outFile, voiceId) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Eleven Labs API failed with status ${response.status}: ${errorText}`);
+    throw new Error(`Eleven Labs API failed with status ${response.status} (Voice ID: ${voiceId}): ${errorText}`);
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());
@@ -135,10 +134,10 @@ async function main() {
   const allTextWithVoice = collectAllTextWithVoice({ animals, sightWords, sentences });
   
   console.log(`\nFound ${allTextWithVoice.length} \nunique text strings to synthesize.`);
-  console.log(`Using Voices: Facts/Names=${VOICE_ANIMAL_FACTS}, Words/Sentences=${VOICE_SIGHT_WORDS}`);
+  console.log(`Voice Map: Facts/Names=${VOICE_ANIMAL_FACTS_ID}, Words/Sentences=${VOICE_SIGHT_WORDS_ID}`);
 
   let created = 0, skipped = 0, failed = 0;
-  for (const { text, voice } of allTextWithVoice) {
+  for (const { text, voiceId } of allTextWithVoice) {
    
     const slug = toSlug(text);
     if (!slug) continue;
@@ -152,14 +151,14 @@ async function main() {
     }
 
     try {
-      console.log(`🎙  TTS (${voice}): [${text.substring(0, 60)}...]`);
-      await synthesizeToFile(text, outFile, voice);
+      console.log(`🎙  TTS (ID: ${voiceId.substring(0, 4)}...): [${text.substring(0, 60)}...]`);
+      await synthesizeToFile(text, outFile, voiceId);
       created++;
       console.log(`   -> Saved ${outFile}`);
       await sleep(RATE_MS);
     } catch (e) {
       failed++;
-      console.error(`❌ TTS fail: ${text.substring(0, 60)}... :: ${e.message || e}`);
+      console.error(`❌ TTS fail (ID: ${voiceId.substring(0, 4)}...): ${text.substring(0, 60)}... :: ${e.message || e}`);
       
       // Attempt to handle length limit by truncation
       if (e.message && e.message.includes("Text length exceeded")) {
@@ -168,7 +167,7 @@ async function main() {
         const longSlug = toSlug(longText);
         const longOutFile = path.join(TTS_DIR, `${longSlug}.mp3`);
         try {
-          await synthesizeToFile(longText, longOutFile, voice);
+          await synthesizeToFile(longText, longOutFile, voiceId);
           created++;
           console.log(`   -> Saved truncated ${longOutFile}`);
           await sleep(RATE_MS);
