@@ -116,12 +116,15 @@ async function main() {
   if (!fs.existsSync(dataPath)) throw new Error(`Data file not found at expected path: ${dataPath}`);
 
   const dataContent = fs.readFileSync(dataPath, "utf8");
-  const ctx = {};
-  vm.createContext(ctx);
-  vm.runInContext(dataContent, ctx);
   
-  const animals = ctx.ANIMAL_DATABASE || [];
-  
+  // Extract ANIMAL_DATABASE content by stripping 'window.' and reading the raw array string
+  const animalMatch = dataContent.match(/window\.ANIMAL_DATABASE\s*=\s*(\[[^]*?\]);/s);
+  if (!animalMatch) throw new Error("Could not find window.ANIMAL_DATABASE in the script.");
+
+  // Use vm to safely evaluate the array literal (after removing 'window.')
+  const ctx = { Array, Object }; // Only provide necessary global objects
+  const animals = vm.runInNewContext(animalMatch[1].replace(/`|'/g, "\""), ctx) || [];
+
   const names = new Set();
   animals.forEach(a => {
       if (a.name) names.add(a.name.trim());
