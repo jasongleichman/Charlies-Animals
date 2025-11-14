@@ -2,10 +2,12 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm"); 
 const { Buffer } = require("buffer"); 
-const fetch = require('node-fetch');
+// FIX: Require the module and correctly resolve the fetch function for CJS
+const nodeFetch = require('node-fetch');
+const fetch = nodeFetch.default || nodeFetch; 
 
 // -------- VOICE CONFIGURATION (Using specific Voice IDs) --------
-const VOICE_SIGHT_WORDS_ID = "qyFhaJEAwHR0eYLCmlUT"; // Matt - The Young Professor 
+const VOICE_SIGHT_WORDS_ID = "qyFhaJEAwHR0eYLCmlUT"; // Adam - Engineering Professor
 const VOICE_ANIMAL_FACTS_ID = "j9jfwdrw7BRfcR43Qohk"; // Frederick Surrey
 const MODEL_ID = "eleven_monolingual_v1"; // Recommended stable model
 
@@ -75,13 +77,13 @@ function collectAllTextWithVoice({ animals, sightWords, sentences }) {
     }
   };
 
-  // 1. Assign Frederick (ANIMAL_VOICE_ID) to Animal Names and Facts
+  // 1. Assign Frederick (VOICE_ANIMAL_FACTS_ID) to Animal Names and Facts
   animals.forEach(a => {
     addText(a.name, VOICE_ANIMAL_FACTS_ID);
     (a.facts || []).forEach(f => addText(f, VOICE_ANIMAL_FACTS_ID));
   });
 
-  // 2. Assign Adam (SIGHT_WORD_VOICE_ID) to Sight Words and Sentences
+  // 2. Assign Adam (VOICE_SIGHT_WORDS_ID) to Sight Words and Sentences
   sightWords.forEach(w => addText(w.word, VOICE_SIGHT_WORDS_ID));
   sentences.forEach(s => addText(s.sentence, VOICE_SIGHT_WORDS_ID));
 
