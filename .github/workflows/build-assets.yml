@@ -1,7 +1,12 @@
 name: Build Static Assets (Images + TTS)
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      UPDATE_FILES:
+        description: 'Set to true to regenerate and update ALL images and TTS files. Default is false (diff-only).'
+        required: false
+        default: 'false'
   push:
     paths:
       - "docs/index.html"
@@ -19,7 +24,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Ensure the checkout action has the token necessary for pull/push
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node
@@ -34,26 +38,37 @@ jobs:
         run: |
           mkdir -p docs/assets/images docs/assets/tts
 
-      # (Optional) refresh images manifest (diff-only)
-      - name: Build images manifest
+      # ⬇️ STEP 1: CONDITIONAL IMAGE BUILD
+      - name: Build Images Manifest (Conditional Regeneration)
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.UPDATE_FILES == 'true'
         run: |
+          # If UPDATE_FILES is true, run with --overwrite to force image download.
+          # Otherwise, run normally (diff-only, using local files if present).
           node scripts/build_images_from_wikimedia.mjs --db=docs/index.html --out=./docs/assets
 
-      # ⬇️ FINAL: Build only Sight Words and Sentences (Differential Update)
-      - name: Build TTS (Words/Sentences Only, Eleven Labs)
+      # ⬇️ STEP 2: CONDITIONAL TTS BUILD
+      - name: Build TTS (Conditional Regeneration, Eleven Labs)
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.UPDATE_FILES == 'true'
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-        run: node scripts/build_tts_elevenlabs.cjs --db=docs/index.html --out=./docs/assets --rate=1000 --scope=words
+        run: |
+          # 🚨 Delete all MP3s ONLY if UPDATING FILES is explicitly requested.
+          # This forces regeneration and prevents using old AWS audio.
+          rm -f docs/assets/tts/*.mp3 || true
+          
+          # We use scope=facts here to generate all the missing Animal Facts audio.
+          node scripts/build_tts_elevenlabs.cjs --db=docs/index.html --out=./docs/assets --rate=1000 --scope=facts
 
       # Commit only if something actually changed
       - name: Commit & push if changes
+        if: always() # Always run this step even if previous steps failed (to check for manifest changes)
         shell: bash
         run: |
           # Configure bot user
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Stage all generated assets (images and newly created TTS)
+          # Stage all generated assets (images and TTS)
           git add docs/assets/tts/*.mp3 || true 
           git add docs/assets/images/*.webp || true
           git add docs/assets/manifest.json docs/images_map.json || true
