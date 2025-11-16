@@ -654,7 +654,8 @@ const AnimalDetailsScreen = ({ animal, profile, navigateTo, speak, isSpeaking, g
                         Back to Collection
                     </button>
                 </div>
-            </MainContainer>
+            </div> 
+        </MainContainer>
     );
 };
 
@@ -1247,4 +1248,127 @@ const AnimalReadingApp = () => {
                     <Home className="w-6 h-6" /> Main Menu
                 </button>
             </div>
-            {showStatsModal && <StatsModal profile={profile} onClose
+            {showStatsModal && <StatsModal profile={profile} onClose={() => setShowStatsModal(false)} />}
+            {showRewardsModal && <RewardsModal profile={profile} onClose={() => setShowRewardsModal(false)} />}
+        </MainContainer>
+    );
+   
+    const AnimalGalleryScreen = () => {
+        const animalDatabase = window.ANIMAL_DATABASE || [];
+        const [animalsWithImages, setAnimalsWithImages] = useState([]);
+        const [isGalleryLoading, setIsGalleryLoading] = useState(true);
+       
+        useEffect(() => {
+            const fetchImages = async () => {
+                setIsGalleryLoading(true);
+                const fetches = animalDatabase.map(a => getAnimalDataForModal(a.name));
+                const results = await Promise.all(fetches);
+                setAnimalsWithImages(results.filter(a => a !== null));
+                setIsGalleryLoading(false);
+            };
+            fetchImages();
+        }, [profile.collectedAnimals]);
+       
+        const handleCardClick = (animal) => {
+            if ((profile.collectedAnimals || []).includes(animal.name)) {
+                navigateTo('animal-details', true, animal.name);
+            }
+        };
+
+        const sortedAnimals = animalsWithImages.sort((a, b) => {
+            const aCollected = (profile.collectedAnimals || []).includes(a.name);
+            const bCollected = (profile.collectedAnimals || []).includes(b.name);
+            if (aCollected && !bCollected) return -1;
+            if (!aCollected && bCollected) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        return (
+            <MainContainer sidebarProps={sidebarProps}>
+                <div className="w-full max-w-4xl">
+                    <h1 className="text-3xl font-bold text-gray-800 mb-6 border-b pb-3">
+                        My Animal Collection ({`${(profile.collectedAnimals || []).length}/${animalDatabase.length}`})
+                    </h1>
+                    
+                    {isGalleryLoading ? (
+                        <div className="flex flex-col items-center justify-center py-10">
+                            <Loader2 className="w-12 h-12 animate-spin text-emerald-500" />
+                            <p className="mt-4 text-lg text-gray-600">Loading Animal Data...</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {sortedAnimals.map(animal => {
+                                const isCollected = (profile.collectedAnimals || []).includes(animal.name);
+                                const factsUnlocked = (profile.factIndices || {})[animal.name] || 0;
+                                
+                                return (
+                                    <button
+                                        key={animal.name}
+                                        onClick={() => handleCardClick(animal)}
+                                        disabled={!isCollected}
+                                        className={`group bg-white rounded-2xl shadow-lg p-4 flex flex-col items-center justify-center text-center transition-all transform hover:scale-[1.02] border ${isCollected ? 'border-emerald-300 hover:shadow-emerald-200' : 'border-gray-200 opacity-60 cursor-default'}`}
+                                    >
+                                        <div className="h-24 w-full flex items-center justify-center mb-3 bg-gray-50 rounded-xl overflow-hidden shadow-inner">
+                                            {isCollected ? (
+                                                <img 
+                                                    src={animal.imageUrl} 
+                                                    alt={animal.name} 
+                                                    className="max-h-full object-contain"
+                                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/100x96/f0fdf4/065f46?text=${animal.name.replace(' ', '+')}` }}
+                                                />
+                                            ) : (
+                                                <Lock className="w-8 h-8 text-gray-400" />
+                                            )}
+                                        </div>
+                                        <h2 className="text-lg font-semibold text-gray-800 line-clamp-1">{animal.name}</h2>
+                                        <p className={`text-sm mt-1 font-medium ${isCollected ? 'text-emerald-600' : 'text-gray-500'}`}>
+                                            {isCollected ? `Facts: ${factsUnlocked}/${animal.facts.length}` : 'Locked'}
+                                        </p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+                {showStatsModal && <StatsModal profile={profile} onClose={() => setShowStatsModal(false)} />}
+                {showRewardsModal && <RewardsModal profile={profile} onClose={() => setShowRewardsModal(false)} />}
+            </MainContainer>
+        );
+    };
+
+    // Main Render Logic
+    if (!isAuthReady) {
+        return <LoadingScreen />;
+    }
+    if (appView === 'setup') {
+        return <AW_WelcomeScreen onStart={handleStartPlaying} />;
+    }
+   
+    const getCurrentView = () => {
+        switch (appView) {
+            case 'home':
+                return <WelcomeScreen />;
+            case 'game':
+                return <GameScreen />;
+            case 'complete':
+                return <CompletionScreen />;
+            case 'gallery':
+                return <AnimalGalleryScreen />;
+            case 'animal-details':
+                if (selectedAnimalForDetails) {
+                    return <AnimalDetailsScreen animal={selectedAnimalForDetails} profile={profile} navigateTo={navigateTo} speak={speak} isSpeaking={isSpeaking} getAnimalDataForModal={getAnimalDataForModal} />;
+                }
+                return <AnimalGalleryScreen />;
+            default:
+                return <WelcomeScreen />;
+        }
+    };
+
+    return getCurrentView();
+};
+
+// RENDER THE APP
+ReactDOM.createRoot(document.getElementById('root')).render(<AnimalReadingApp />);
+</script>
+</body>
+</html>
