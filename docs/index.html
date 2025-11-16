@@ -477,7 +477,7 @@ const RewardsModal = ({ profile, onClose }) => {
                         
                         // FIX: Normalize URL to the proper embed path
                         const embedUrl = video.url 
-                            ? video.url.replace(/(?:youtu\.be\/|watch\?v=)([^&?]+)/, 'https://www.youtube.com/embed/$1')
+                            ? video.url.replace(/((?:youtu\.be\/|watch\?v=))([^&?]+)/, 'https://www.youtube.com/embed/$2')
                             : '';
                        
                         return (
@@ -654,7 +654,7 @@ const AnimalDetailsScreen = ({ animal, profile, navigateTo, speak, isSpeaking, g
                         Back to Collection
                     </button>
                 </div>
-            </div> 
+            </MainContainer>
         </MainContainer>
     );
 };
@@ -1083,8 +1083,9 @@ const AnimalReadingApp = () => {
         
         if (!currentItem) { return <LoadingScreen />; }
         
-        // FIX: The audio to play should be the 'correct' word, not the full display sentence/text
-        const audioText = gameMode === 'words' ? currentItem.correct : (currentItem.word || currentItem.sentence);
+        // FIX: The audio to play should use the slug of the 'correct' word, 
+        // but the spoken text is the entire 'word' property for TTS generation.
+        const audioSlugSource = gameMode === 'words' ? currentItem.correct : (currentItem.word || currentItem.sentence);
         const displayMainText = currentItem.word || currentItem.sentence;
        
         if (showRewardModal || showVideoModal) {
@@ -1182,7 +1183,7 @@ const AnimalReadingApp = () => {
                                 <p className="text-sm text-gray-500">Get it right to reveal the fact!</p>
                             </div>
                             <button
-                                onClick={() => speak(audioText)}
+                                onClick={() => speak(audioSlugSource)}
                                 disabled={isSpeaking}
                                 className="bg-emerald-500 hover:bg-emerald-600 text-white text-xl font-bold py-3 px-8 rounded-xl flex items-center gap-3 mx-auto transition-all transform hover:scale-105 shadow-md shadow-emerald-500/20 disabled:bg-gray-400"
                             >
@@ -1253,122 +1254,168 @@ const AnimalReadingApp = () => {
         </MainContainer>
     );
    
-    const AnimalGalleryScreen = () => {
-        const animalDatabase = window.ANIMAL_DATABASE || [];
-        const [animalsWithImages, setAnimalsWithImages] = useState([]);
-        const [isGalleryLoading, setIsGalleryLoading] = useState(true);
+    const GalleryScreen = () => {
+        const [modalLoading, setModalLoading] = useState(false);
+        const [imageUrls, setImageUrls] = useState({});
+        
+        const openFactDetails = useCallback(async (animalName) => {
+            if (modalLoading) return;
+            setModalLoading(true);
+            const animal = window.ANIMAL_DATABASE.find(a => a.name === animalName);
+            if (animal) {
+                const animalWithData = await getAnimalDataForModal(animalName);
+                if (animalWithData) {
+                    setSelectedAnimalForDetails(animalWithData);
+                    navigateTo('animal-details', false, animalName); // Pass animalName to navigateTo
+                } else {
+                    console.error("Failed to load full animal data for details screen.");
+                }
+            }
+            setModalLoading(false);
+        }, [getAnimalDataForModal, modalLoading, navigateTo, setSelectedAnimalForDetails]);
        
         useEffect(() => {
-            const fetchImages = async () => {
-                setIsGalleryLoading(true);
-                const fetches = animalDatabase.map(a => getAnimalDataForModal(a.name));
-                const results = await Promise.all(fetches);
-                setAnimalsWithImages(results.filter(a => a !== null));
-                setIsGalleryLoading(false);
+            const loadImages = async () => {
+                const manifest = await awLoadImageManifest();
+                if (manifest && manifest.images) {
+                    setImageUrls(manifest.images);
+                }
             };
-            fetchImages();
-        }, [profile.collectedAnimals]);
+            loadImages();
+        }, []);
+        const totalAnimals = (window.ANIMAL_DATABASE || []).length;
+        const collected = (profile.collectedAnimals || []);
        
-        const handleCardClick = (animal) => {
-            if ((profile.collectedAnimals || []).includes(animal.name)) {
-                navigateTo('animal-details', true, animal.name);
-            }
-        };
-
-        const sortedAnimals = animalsWithImages.sort((a, b) => {
-            const aCollected = (profile.collectedAnimals || []).includes(a.name);
-            const bCollected = (profile.collectedAnimals || []).includes(b.name);
+        const sortedAnimals = [...(window.ANIMAL_DATABASE || [])].sort((a, b) => {
+            const aCollected = collected.includes(a.name);
+            const bCollected = collected.includes(b.name);
             if (aCollected && !bCollected) return -1;
             if (!aCollected && bCollected) return 1;
             return a.name.localeCompare(b.name);
         });
-
+       
         return (
             <MainContainer sidebarProps={sidebarProps}>
-                <div className="w-full max-w-4xl">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-6 border-b pb-3">
-                        My Animal Collection ({`${(profile.collectedAnimals || []).length}/${animalDatabase.length}`})
-                    </h1>
-                    
-                    {isGalleryLoading ? (
-                        <div className="flex flex-col items-center justify-center py-10">
-                            <Loader2 className="w-12 h-12 animate-spin text-emerald-500" />
-                            <p className="mt-4 text-lg text-gray-600">Loading Animal Data...</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {sortedAnimals.map(animal => {
-                                const isCollected = (profile.collectedAnimals || []).includes(animal.name);
-                                const factsUnlocked = (profile.factIndices || {})[animal.name] || 0;
-                                
-                                return (
-                                    <button
-                                        key={animal.name}
-                                        onClick={() => handleCardClick(animal)}
-                                        disabled={!isCollected}
-                                        className={`group bg-white rounded-2xl shadow-lg p-4 flex flex-col items-center justify-center text-center transition-all transform hover:scale-[1.02] border ${isCollected ? 'border-emerald-300 hover:shadow-emerald-200' : 'border-gray-200 opacity-60 cursor-default'}`}
-                                    >
-                                        <div className="h-24 w-full flex items-center justify-center mb-3 bg-gray-50 rounded-xl overflow-hidden shadow-inner">
-                                            {isCollected ? (
-                                                <img 
-                                                    src={animal.imageUrl} 
-                                                    alt={animal.name} 
-                                                    className="max-h-full object-contain"
-                                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/100x96/f0fdf4/065f46?text=${animal.name.replace(' ', '+')}` }}
-                                                />
-                                            ) : (
-                                                <Lock className="w-8 h-8 text-gray-400" />
-                                            )}
-                                        </div>
-                                        <h2 className="text-lg font-semibold text-gray-800 line-clamp-1">{animal.name}</h2>
-                                        <p className={`text-sm mt-1 font-medium ${isCollected ? 'text-emerald-600' : 'text-gray-500'}`}>
-                                            {isCollected ? `Facts: ${factsUnlocked}/${animal.facts.length}` : 'Locked'}
-                                        </p>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
+                <div className="max-w-6xl w-full mx-auto">
+                    <div className="flex justify-between items-center py-4 mb-6 border-b border-gray-200">
+                        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                            <Image className="w-8 h-8 text-emerald-500" /> Animal Collection
+                        </h1>
+                        <p className="text-lg text-gray-600">
+                            Collected: <span className="font-bold text-emerald-600">{`${collected.length} / ${totalAnimals}`}</span>
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                        {sortedAnimals.map((animal) => {
+                            const isCollected = collected.includes(animal.name);
+                            const factCount = (profile.factIndices || {})[animal.name] || 0;
+                            const slug = slugify(animal.name);
+                            const imageUrl = imageUrls[slug] || `https://placehold.co/400x250/f0fdf4/065f46?text=${animal.name.replace(' ', '+')}`;
+                           
+                            return (
+                                <div
+                                    key={animal.name}
+                                    className={`bg-white rounded-2xl overflow-hidden shadow-md transition-all ${isCollected ? 'border-2 border-emerald-200 hover:shadow-lg cursor-pointer' : 'border border-gray-200 opacity-80'}`}
+                                    onClick={() => isCollected && openFactDetails(animal.name)}
+                                >
+                                    <div className="h-36 bg-gray-100 flex items-center justify-center overflow-hidden p-4">
+                                        {isCollected ? (
+                                            <img
+                                                src={imageUrl}
+                                                alt={animal.name}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/400x250/f0fdf4/065f46?text=${animal.name.replace(' ', '+')}` }}
+                                            />
+                                        ) : (
+                                            <Lock className="w-12 h-12 text-gray-500" />
+                                        )}
+                                    </div>
+                                    <div className="p-4">
+                                        <h2 className={`text-lg font-bold ${isCollected ? 'text-gray-800' : 'text-gray-500'}`}>
+                                            {isCollected ? animal.name : '??????'}
+                                        </h2>
+                                        {isCollected && (
+                                            <p className="text-sm text-gray-500 mt-1">
+                                                Facts: <span className="font-semibold text-emerald-600">{`${factCount} / ${animal.facts.length}`}</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
+              
+                {modalLoading && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
+                         <Loader2 className="w-16 h-16 animate-spin text-emerald-400" />
+                    </div>
+                )}
                 {showStatsModal && <StatsModal profile={profile} onClose={() => setShowStatsModal(false)} />}
                 {showRewardsModal && <RewardsModal profile={profile} onClose={() => setShowRewardsModal(false)} />}
             </MainContainer>
         );
     };
-
-    // Main Render Logic
-    if (!isAuthReady) {
-        return <LoadingScreen />;
+    // View Controller
+    switch (appView) {
+        case 'loading':
+            return <LoadingScreen />;
+        case 'setup':
+            return <AW_WelcomeScreen onStart={handleStartPlaying} />;
+        case 'home':
+            return <WelcomeScreen />;
+        case 'game':
+            return <GameScreen />;
+        case 'complete':
+            return <CompletionScreen />;
+        case 'gallery':
+            return <GalleryScreen />;
+        case 'animal-details':
+            if (selectedAnimalForDetails) {
+                 return <AnimalDetailsScreen 
+                            animal={selectedAnimalForDetails} 
+                            profile={profile}
+                            navigateTo={navigateTo}
+                            speak={speak}
+                            isSpeaking={isSpeaking}
+                            getAnimalDataForModal={getAnimalDataForModal}
+                        />;
+            }
+            return <GalleryScreen />;
+        default:
+            return <LoadingScreen />;
     }
-    if (appView === 'setup') {
-        return <AW_WelcomeScreen onStart={handleStartPlaying} />;
-    }
-   
-    const getCurrentView = () => {
-        switch (appView) {
-            case 'home':
-                return <WelcomeScreen />;
-            case 'game':
-                return <GameScreen />;
-            case 'complete':
-                return <CompletionScreen />;
-            case 'gallery':
-                return <AnimalGalleryScreen />;
-            case 'animal-details':
-                if (selectedAnimalForDetails) {
-                    return <AnimalDetailsScreen animal={selectedAnimalForDetails} profile={profile} navigateTo={navigateTo} speak={speak} isSpeaking={isSpeaking} getAnimalDataForModal={getAnimalDataForModal} />;
-                }
-                return <AnimalGalleryScreen />;
-            default:
-                return <WelcomeScreen />;
-        }
-    };
-
-    return getCurrentView();
 };
-
-// RENDER THE APP
-ReactDOM.createRoot(document.getElementById('root')).render(<AnimalReadingApp />);
+// React Render Mount
+const container = document.getElementById("root");
+const root = ReactDOM.createRoot(container);
+root.render(<AnimalReadingApp />);
+;
 </script>
+<script>
+  // FIX: Use a safer preloader
+  window.addEventListener('load', () => {
+      setTimeout(() => {
+          try {
+              if (window.awPreloadImages) window.awPreloadImages();
+          } catch(e){}
+      }, 600);
+  });
+</script>
+ 
+  <script>
+    // Make the Change Player/Sign Out area always work as a safety net
+    document.addEventListener('click', function(e){
+      const el = e.target.closest('[data-action="signout"], [data-action="change-player"]');
+      if (!el) return;
+      try {
+        localStorage.removeItem('playerName');
+        // FIX: Clear the full profile list on sign out
+        localStorage.removeItem('profiles_v1');
+      } catch(_){}
+      // Best-effort return to Welcome
+      try { window.location.reload(); } catch(_){}
+    }, true);
+  </script>
 </body>
 </html>
