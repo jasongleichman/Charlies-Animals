@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -299,12 +299,17 @@ const useAppState = () => {
             };
            
             micTimeoutRef.current = setTimeout(() => {
-                if (recognitionRef.current && isListening) {
+                if (recognitionRef.current) {
                     recognitionRef.current.stop();
                 }
             }, 5000);
-            recognition.start();
-        }, [isListening]);
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error('Failed to start recognition', e);
+                setIsListening(false);
+            }
+        }, []);
        
         const stopListening = useCallback(() => {
             if (recognitionRef.current) {
@@ -1166,6 +1171,12 @@ const AnimalReadingApp = () => {
     );
   
     const QuizGameScreen = () => {
+        useEffect(() => {
+            if (showRewardModal && !animalData) {
+                setShowRewardModal(false);
+                moveToNextQuestion(null);
+            }
+        }, [showRewardModal, animalData, moveToNextQuestion]);
         const currentContent = gameMode === 'words' ? shuffledWords : shuffledSentences;
         const currentItem = currentContent[currentIndex];
        
@@ -1179,7 +1190,7 @@ const AnimalReadingApp = () => {
       
         if (showRewardModal || showVideoModal) {
             const animal = animalData;
-            if (!animal) return <LoadingScreen />;
+            if (!animal) return null; // Skipped via useEffect
             const totalFacts = (window.ANIMAL_DATABASE || []).find(a => a.name === animal.name)?.facts.length || 10;
           
             if (showVideoModal) {
@@ -1320,6 +1331,12 @@ const AnimalReadingApp = () => {
    
     // NEW COMPONENT: SPEECH GAME SCREEN
     const SpeechGameScreen = () => {
+        useEffect(() => {
+            if (showRewardModal && !animalData) {
+                setShowRewardModal(false);
+                moveToNextQuestion(null);
+            }
+        }, [showRewardModal, animalData, moveToNextQuestion]);
         const currentContent = shuffledWords;
         const currentItem = currentContent[currentIndex];
        
@@ -1343,21 +1360,23 @@ const AnimalReadingApp = () => {
                 const newScore = score + 10;
                 const newStreak = (profile.streak || 0) + 1;
                 setScore(newScore);
-                let newProfile = { ...profile, streak: newStreak };
-                let isVideoReward = false;
+                const newProfile = { ...profile, streak: newStreak };
+                setProfile(newProfile);
+               
                 if (newStreak >= 10 && (newStreak % 10) === 0) {
                     const newRewardCount = (profile.rewardsEarned || 0) + 1;
-                    newProfile = { ...newProfile, rewardsEarned: newRewardCount };
-                    isVideoReward = true;
-                    saveUserProfile(newProfile);
+                    const updatedProfile = { ...newProfile, rewardsEarned: newRewardCount };
+                    setProfile(updatedProfile);
+                    saveUserProfile(updatedProfile);
+                    generateRewardAnimal(true, appView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal);
+                } else {
+                    generateRewardAnimal(false, appView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal);
                 }
-                setProfile(newProfile);
-                generateRewardAnimal(isVideoReward, appView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal);
             } else {
-                window.__speakLocal('Game Over.');
+                window.__speakLocal('Try again.');
                 setTimeout(() => { logScoreAndEndGame(score, gameMode); }, 1000);
             }
-        }, [currentItem, score, gameMode, selectedAnswer, profile, setProfile, saveUserProfile, generateRewardAnimal, logScoreAndEndGame, moveToNextQuestion, appView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal]);
+        }, [currentItem, score, gameMode, selectedAnswer, profile, setProfile, saveUserProfile, generateRewardAnimal, logScoreAndEndGame, appView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal]);
        
         // Check answer immediately after receiving a final, non-empty transcript
         useEffect(() => {
@@ -1368,7 +1387,7 @@ const AnimalReadingApp = () => {
        
         if (showRewardModal || showVideoModal) {
             const animal = animalData;
-            if (!animal) return <LoadingScreen />;
+            if (!animal) return null; // Skipped via useEffect
             const totalFacts = (window.ANIMAL_DATABASE || []).find(a => a.name === animal.name)?.facts.length || 10;
           
             if (showVideoModal) {
@@ -1381,6 +1400,8 @@ const AnimalReadingApp = () => {
             }
           
             if (showRewardModal && animalData) {
+                const animal = animalData;
+                const totalFacts = (window.ANIMAL_DATABASE || []).find(a => a.name === animal.name)?.facts.length || 10;
                 return (
                     <MainContainer sidebarProps={sidebarProps}>
                         <div className="bg-white border border-gray-200 p-8 rounded-3xl shadow-xl max-w-lg w-full text-center">
@@ -1435,11 +1456,15 @@ const AnimalReadingApp = () => {
         const handlePressStart = useCallback((e) => {
             e.preventDefault();
             startListening();
-        }, [startListening]);
-        const handlePressEnd = useCallback((e) => {
-            e.preventDefault();
-            stopListening();
-        }, [stopListening]);
+            const stopGlobal = (ev) => {
+                ev.preventDefault();
+                stopListening();
+                document.removeEventListener('mouseup', stopGlobal);
+                document.removeEventListener('touchend', stopGlobal);
+            };
+            document.addEventListener('mouseup', stopGlobal, { once: true });
+            document.addEventListener('touchend', stopGlobal, { once: true, passive: false });
+        }, [startListening, stopListening]);
         let buttonText = 'Hold to Speak';
         let buttonClass = 'bg-emerald-500 hover:bg-emerald-600';
         let micIcon = <Volume2 className="w-6 h-6" />;
@@ -1478,10 +1503,7 @@ const AnimalReadingApp = () => {
                         </p>
                         <button
                             onMouseDown={handlePressStart}
-                            onMouseUp={handlePressEnd}
-                            onMouseLeave={handlePressEnd}
                             onTouchStart={handlePressStart}
-                            onTouchEnd={handlePressEnd}
                             disabled={isDisabled}
                             className={`w-full text-white text-xl font-bold py-3 px-8 rounded-xl flex items-center justify-center gap-3 mx-auto transition-all transform hover:scale-105 shadow-md shadow-emerald-500/20 disabled:opacity-50 select-none ${buttonClass}`}
                         >
@@ -1572,3 +1594,4 @@ root.render(<AnimalReadingApp />);
   </script>
 </body>
 </html>
+```
