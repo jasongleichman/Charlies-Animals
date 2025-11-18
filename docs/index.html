@@ -1334,6 +1334,7 @@ const AnimalReadingApp = () => {
         const currentContent = shuffledWords;
         const currentItem = currentContent[currentIndex];
         
+        // This screen uses the 'correct' word for both display and target speech comparison
         const { transcript, isListening, isFinal, startListening, stopListening, setTranscript, setIsFinal } = useAppState().useSpeechRecognition(currentItem.correct);
 
         // Handler to compare spoken word against the correct word
