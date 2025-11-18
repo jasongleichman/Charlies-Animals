@@ -251,8 +251,9 @@ const useAppState = () => {
                 return;
             }
             
+            // Aggressively stop any previous instance before starting new one
             if (recognitionRef.current) {
-                recognitionRef.current.stop();
+                try { recognitionRef.current.abort(); } catch (e) { console.warn("Error aborting previous mic instance:", e); }
             }
             
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -296,6 +297,15 @@ const useAppState = () => {
             recognition.onend = () => {
                 setIsListening(false);
                 if (micTimeoutRef.current) clearTimeout(micTimeoutRef.current);
+                
+                // Aggressively attempt to abort/stop recognition on end to free up resources
+                try {
+                    if (recognitionRef.current) {
+                        recognitionRef.current.abort();
+                    }
+                } catch (e) {
+                    console.warn("Error during recognition cleanup abort:", e);
+                }
             };
             
             micTimeoutRef.current = setTimeout(() => {
@@ -317,6 +327,15 @@ const useAppState = () => {
             }
         }, []);
         
+        // CLEANUP EFFECT: Stops recognition when the component is unmounted or re-rendered
+        useEffect(() => {
+            return () => {
+                if (recognitionRef.current) {
+                    recognitionRef.current.abort();
+                }
+            };
+        }, []);
+
         return { transcript, isListening, isFinal, startListening, stopListening, setTranscript, setIsFinal };
     };
     
