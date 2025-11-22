@@ -1,3 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Charlie's Animal Words</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    html, body, #root { height: 100%; margin: 0; padding: 0; }
+  </style>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>
+    :root {
+      --safe-top: env(safe-area-inset-top);
+      --safe-bottom: env(safe-area-inset-bottom);
+      --safe-left: env(safe-area-inset-left);
+      --safe-right: env(safe-area-inset-right);
+    }
+    html { height: 100%; }
+    body {
+      min-height: 100vh;
+      background: #f8fafc;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+      padding-left: var(--safe-left);
+      padding-right: var(--safe-right);
+    }
+ 
+    @media (orientation: landscape) {
+      html { font-size: clamp(14px, 1.9vh, 16px); }
+    }
+    @media (max-width: 834px) {
+      .text-5xl { font-size: clamp(1.6rem, 5vw, 2rem) !important; }
+      .text-4xl { font-size: clamp(1.4rem, 4.5vw, 1.8rem) !important; }
+      .text-3xl { font-size: clamp(1.2rem, 4vw, 1.6rem) !important; }
+      .p-8 { padding: clamp(0.75rem, 2.5vw, 1.25rem) !important; }
+      .p-6 { padding: clamp(0.6rem, 2vw, 1rem) !important; }
+      main { overflow: auto; }
+    }
+    @media (min-width: 1280px) {
+      .container, .mx-auto { padding-left: 1.25rem; padding-right: 1.25rem; }
+    }
+  </style>
+  <style id="ipad-welcome-55">
+    @media (orientation: landscape) and (min-width: 900px) {
+      .welcome-card, .setup-card {
+        width: 55vw !important;
+        max-width: 55vw !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+      .welcome-input.api-key,
+      input.api-key {
+        max-width: 36ch !important;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 0.95rem !important;
+        padding-left: 0.9rem !important;
+        padding-right: 0.9rem !important;
+      }
+    }
+    main { max-height: 100vh; overflow:auto; }
+  </style>
+</head>
+<body>
+  <script>
+    // ---- Fallback: on-device SpeechSynthesis with male English voice ----
+    (function(){
+      let __voicesReady = false, __voices = [];
+    
+      function pickEnUSMale(){
+        if (!__voices.length) return null;
+        const pref = ["Aaron","Alex","Eddy","Evan","Reed","Tom","Google US English","Microsoft David","Daniel","Matthew","Oliver"];
+        const en = __voices.filter(v => /en[-_]?US/i.test(v.lang||v.voiceURI||""));
+        for (const n of pref){ const hit=en.find(v => (v.name||v.voiceURI||"").toLowerCase().includes(n.toLowerCase())); if (hit) return hit; }
+        return en[0] || __voices[0] || null;
+      }
+    
+      async function loadVoices() {
+        return new Promise(res => {
+          const tryLoad=()=>{
+            const v = speechSynthesis.getVoices();
+            if (v && v.length){
+              __voices=v;
+              __voicesReady=true;
+              res();
+            } else {
+              setTimeout(tryLoad, 100);
+            }
+          };
+          tryLoad();
+        });
+      }
+      window.__speakLocal = window.__speakLocal || (async function(text){
+        try{
+          if (!__voicesReady) {
+            await loadVoices();
+          }
+          const u = new SpeechSynthesisUtterance(text||"");
+          const v = pickEnUSMale();
+          if (v) {
+            u.voice = v;
+            u.lang = v.lang;
+          } else {
+            u.lang = "en-US";
+          }
+          u.rate=0.92; u.pitch=1.0; u.volume=1.0;
+          return new Promise(r=>{ u.onend=r; speechSynthesis.speak(u); });
+        } catch(e){ console.warn("WebSpeech error", e); }
+      });
+      try {
+        speechSynthesis.getVoices();
+        setTimeout(()=>speechSynthesis.getVoices(), 500);
+      } catch(_){}
+    })();
+  </script>
+  <div id="root"></div>
+  <script src="./assets/app-data.js"></script>
+  <script>
+    window.appInstance = {};
+    window.firebase = {};
+  </script>
 <script type="text/babel">
 // --- CORE UTILS ---
 const AW_AVATAR_EMOJI = ["🦊","🦁","🐯","🐻","🐼","🐨","🐵","🦝","🦓","🦒","🦘","🦭","🦥","🦔","🦅","🦉","🦩","🦚"];
@@ -104,147 +232,145 @@ const slugify = (s) => (s || "")
     const ChevronLeft = (p) => <LucideIcon name="chevron-left" {...p} />;
 // --- CUSTOM HOOK: useAppState (LOCAL ONLY) ---
 const useAppState = () => {
-    // NEW HOOK: Speech Recognition (Web Speech API reliance)
-    const useSpeechRecognition = (correctWord) => {
+    // NEW HOOK: Promise-Based Speech Recognition for stability
+    const useSpeechRecognition = () => {
         const [transcript, setTranscript] = useState('');
         const [isListening, setIsListening] = useState(false);
         const [isFinal, setIsFinal] = useState(false);
         const recognitionRef = useRef(null);
-        const micTimeoutRef = useRef(null);
-        const isRunningRef = useRef(false); 
-        const isMounted = useRef(true); // Mount flag for stability
+        const isMounted = useRef(true); 
 
-        // Utility to clean up listeners and state
-        const cleanup = useCallback(() => {
-             if (micTimeoutRef.current) {
-                 clearTimeout(micTimeoutRef.current);
-                 micTimeoutRef.current = null;
-             }
-             
-             // Only abort if the recognition object exists AND is running
-             if (recognitionRef.current && isRunningRef.current) {
-                 try {
-                     recognitionRef.current.abort(); // Use abort for aggressive cleanup
-                 } catch (e) {
-                     console.warn("Error during recognition cleanup abort:", e);
-                 }
-             }
-
-             // Reset local running flag
-             isRunningRef.current = false;
-             if(isMounted.current) { // Only update state if component is mounted
-                 setIsListening(false);
-             }
+        // Function to abort any running recognition instance
+        const abortRecognition = useCallback(() => {
+            if (recognitionRef.current) {
+                try {
+                    recognitionRef.current.abort();
+                } catch (e) {
+                    console.warn("Error aborting recognition:", e);
+                }
+                recognitionRef.current = null;
+            }
         }, []);
-        
+
+        // Start listening wrapped in a Promise to control the flow
         const startListening = useCallback(() => {
             if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
                 alert("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
-                return;
+                return Promise.resolve({ transcript: '', error: 'Unsupported' });
             }
            
-            cleanup(); // Ensure any previous instance is completely aborted before starting new one
+            // Clean up any stray instance before starting
+            abortRecognition();
            
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            recognitionRef.current = recognition;
-            recognition.continuous = false;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-            
-            setTranscript(''); 
-            setIsFinal(false);
+            return new Promise(resolve => {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                recognitionRef.current = recognition;
 
-            recognition.onstart = () => {
-                isRunningRef.current = true; // Mark as running
-                if(isMounted.current) {
-                    setIsListening(true);
-                }
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
                 
-                if (micTimeoutRef.current) clearTimeout(micTimeoutRef.current);
-                micTimeoutRef.current = setTimeout(() => {
-                    if (recognitionRef.current && isRunningRef.current) {
-                        recognitionRef.current.stop(); // Graceful stop on timeout
-                    }
-                }, 5000); 
-            };
-            
-            recognition.onresult = (event) => {
-                let interimTranscript = '';
                 let finalTranscript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    const transcriptSegment = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcriptSegment;
-                    } else {
-                        interimTranscript += transcriptSegment;
-                    }
-                }
-                if(isMounted.current) {
-                    setTranscript(finalTranscript || interimTranscript);
-                }
-                if (finalTranscript) {
-                    if(isMounted.current) {
-                        setIsFinal(true);
-                    }
-                    // On final result, use stop() to trigger onend gracefully
-                    if (recognitionRef.current) {
-                        recognitionRef.current.stop(); 
-                    }
-                }
-            };
-
-            recognition.onerror = (event) => {
-                console.error('Speech recognition error', event.error);
-                isRunningRef.current = false; 
-                if (isMounted.current) {
-                    setIsListening(false);
-                }
-                if (micTimeoutRef.current) clearTimeout(micTimeoutRef.current);
-            };
-            
-            recognition.onend = () => {
-                // If the recognition stopped normally, unset the running flag and clean up timeout
-                isRunningRef.current = false;
-                if (isMounted.current) {
-                    setIsListening(false);
-                }
-                if (micTimeoutRef.current) clearTimeout(micTimeoutRef.current);
                 
-                // If it ended without a final result, and we have an interim transcript, mark it as final
-                if (isMounted.current && !isFinal) {
-                    setIsFinal(true);
+                const handleFinalResult = (error = null) => {
+                    // Cleanup internal references
+                    if (recognitionRef.current) {
+                        recognitionRef.current = null;
+                    }
+
+                    if (isMounted.current) {
+                        setIsListening(false);
+                        // Resolve the Promise, providing the result or an error
+                        resolve({ transcript: finalTranscript, error });
+                    }
+                };
+
+                recognition.onstart = () => {
+                    if (isMounted.current) {
+                        setIsListening(true);
+                        setTranscript('');
+                        setIsFinal(false);
+                        finalTranscript = '';
+                    }
+                };
+                
+                recognition.onresult = (event) => {
+                    let interimTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        const segment = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += segment;
+                        } else {
+                            interimTranscript += segment;
+                        }
+                    }
+
+                    if (isMounted.current) {
+                        setTranscript(finalTranscript || interimTranscript);
+                        if (finalTranscript) {
+                            setIsFinal(true);
+                            recognition.stop(); // Stop recognition once final result is found
+                        }
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error', event.error);
+                    handleFinalResult(event.error);
+                };
+                
+                recognition.onend = () => {
+                    if (!finalTranscript) {
+                        // If onend fires without a final transcript (e.g., timeout/no speech), resolve with current transcript.
+                        handleFinalResult(finalTranscript ? null : 'No speech detected');
+                    } else {
+                        handleFinalResult();
+                    }
+                };
+
+                // Add a robust timeout to stop if onend/onerror doesn't fire (browser specific issue)
+                const timeoutId = setTimeout(() => {
+                    if (recognitionRef.current) {
+                        recognitionRef.current.stop();
+                    }
+                }, 5500); // 5.5 second hard stop limit
+
+                // Cleanup timeout on resolution
+                recognition.onend = () => {
+                    clearTimeout(timeoutId);
+                    if (!finalTranscript) {
+                        handleFinalResult(finalTranscript ? null : 'No speech detected');
+                    } else {
+                        handleFinalResult();
+                    }
+                };
+                recognition.onerror = (event) => {
+                    clearTimeout(timeoutId);
+                    console.error('Speech recognition error', event.error);
+                    handleFinalResult(event.error);
+                };
+
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('Failed to start recognition', e);
+                    clearTimeout(timeoutId);
+                    handleFinalResult('Start failed');
                 }
-            };
-           
-            try {
-                recognition.start();
-            } catch (e) {
-                console.error('Failed to start recognition', e);
-                isRunningRef.current = false;
-                if (isMounted.current) {
-                    setIsListening(false);
-                }
-                if (micTimeoutRef.current) clearTimeout(micTimeoutRef.current);
-            }
-        }, [cleanup, isFinal]); 
+            });
+        }, [abortRecognition]);
        
-        const stopListening = useCallback(() => {
-             // Stop the recognition gracefully, which will trigger onend
-             if (recognitionRef.current && isRunningRef.current) {
-                 recognitionRef.current.stop();
-             }
-        }, []);
-       
-        // CLEANUP EFFECT: Sets isMounted to false and aborts recognition on unmount
+        // CLEANUP EFFECT: Abort recognition on unmount to prevent errors
         useEffect(() => {
             return () => {
-                isMounted.current = false; // Set mount flag to false
-                cleanup(); // This will abort the recognition when the component unmounts
+                isMounted.current = false;
+                abortRecognition();
             };
-        }, [cleanup]);
+        }, [abortRecognition]);
 
-        return { transcript, isListening, isFinal, startListening, stopListening, setTranscript, setIsFinal };
+        // We return the raw functions/states. startListening returns a Promise that must be awaited.
+        return { transcript, isListening, isFinal, startListening, abortRecognition, setTranscript, setIsFinal };
     };
    
     const [isAuthReady, setIsAuthReady] = useState(false);
@@ -1243,31 +1369,41 @@ const AnimalReadingApp = () => {
    
     // NEW COMPONENT: SPEECH GAME SCREEN
     const SpeechGameScreen = () => {
-        useEffect(() => {
-            if (showRewardModal && !animalData) {
-                setShowRewardModal(false);
-                moveToNextQuestion(null);
+        const [isProcessing, setIsProcessing] = useState(false);
+        const { transcript, isListening, isFinal, startListening, abortRecognition, setTranscript, setIsFinal } = useSpeechRecognition();
+        
+        // State management for speech recognition result
+        const checkSpeech = useCallback(async () => {
+            if (isProcessing) return; // Prevent multiple simultaneous checks
+            
+            // Step 1: Start the recognition and await the result
+            setIsProcessing(true);
+            const { transcript: spokenText, error } = await startListening();
+            setIsProcessing(false);
+
+            if (error) {
+                console.error("Speech API Error:", error);
+                if (spokenText && spokenText.trim().length > 0) {
+                     // If there was an error but some speech was transcribed, still process it.
+                } else {
+                    // Critical failure/no speech detected, stop here.
+                    setApiError(`Microphone Error: ${error === 'No speech detected' ? 'Please speak louder or check your mic.' : error}`);
+                    // After a critical error, just transition the game (or allow next question)
+                    // We rely on the parent component's useEffect for game flow on selectedAnswer change.
+                    return;
+                }
             }
-        }, [showRewardModal, animalData, moveToNextQuestion]);
-        const currentContent = shuffledWords;
-        const currentItem = currentContent[currentIndex];
-       
-        // This screen uses the 'correct' word for both display and target speech comparison
-        const { transcript, isListening, isFinal, startListening, stopListening, setTranscript, setIsFinal } = useSpeechRecognition(currentItem.correct);
-        // Handler to compare spoken word against the correct word
-        const handleSpeechAnswer = useCallback((spokenText) => {
-            if (selectedAnswer) return;
+            
+            // Step 2: Process the Spoken Text
             const targetWord = currentItem.correct;
-           
-            // Normalize for comparison: lowercase, remove non-alphanumeric/spaces
             const normalizedSpoken = spokenText.toLowerCase().trim().replace(/[^\w\s]/g, '');
             const normalizedCorrect = targetWord.toLowerCase().trim().replace(/[^\w\s]/g, '');
-           
             const isCorrect = normalizedSpoken === normalizedCorrect;
            
-            // This is the correct logic flow for speech:
-            setSelectedAnswer(isCorrect ? targetWord : spokenText);
-           
+            // Step 3: Update game state based on result
+            // Set the final answer to trigger visual feedback
+            setSelectedAnswer(isCorrect ? targetWord : spokenText); 
+
             if (isCorrect) {
                 const newScore = score + 10;
                 const newStreak = (profile.streak || 0) + 1;
@@ -1285,22 +1421,49 @@ const AnimalReadingApp = () => {
                     generateRewardAnimal(false, appView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal);
                 }
             } else {
-                // *** CRITICAL CHANGE: Delay unmount by 1000ms after incorrect answer
                 window.__speakLocal('Try again.');
+                // Critical Delay: Wait 1 second after feedback/mic cleanup before ending the game
                 setTimeout(() => { logScoreAndEndGame(score, gameMode); }, 1000);
             }
-        }, [currentItem, score, gameMode, selectedAnswer, profile, setProfile, saveUserProfile, generateRewardAnimal, logScoreAndEndGame, appView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal]);
-       
-        // Check answer immediately after receiving a final, non-empty transcript
+        }, [isProcessing, currentItem, startListening, setApiError, score, profile, setProfile, saveUserProfile, generateRewardAnimal, logScoreAndEndGame, appView, setAppView, setAnimalData, setShowRewardModal, setShowVideoModal]);
+
+
+        // Handle effects for modals/next question
         useEffect(() => {
-            if (isFinal && transcript && !selectedAnswer) {
-                handleSpeechAnswer(transcript);
+            if (showRewardModal && !animalData) {
+                setShowRewardModal(false);
+                moveToNextQuestion(null);
             }
-        }, [isFinal, transcript, selectedAnswer, handleSpeechAnswer]);
+        }, [showRewardModal, animalData, moveToNextQuestion]);
+
+        // Cleanup on unmount (provided by useSpeechRecognition hook)
        
+        const currentContent = shuffledWords;
+        const currentItem = currentContent[currentIndex];
+        if (!currentItem) { return <LoadingScreen />; }
+       
+        // Determine button state and text
+        const gameEnded = selectedAnswer !== null && !isListening; // Check if an answer has been processed AND listening has stopped
+        const canStart = !isListening && !isProcessing && !gameEnded;
+        
+        let buttonText = 'Tap to Speak'; 
+        let buttonClass = 'bg-emerald-500 hover:bg-emerald-600';
+        let micIcon = <Volume2 className="w-6 h-6" />;
+       
+        if (isProcessing || isListening) {
+            buttonText = 'Listening... Speak Now!'; 
+            buttonClass = 'bg-red-500 hover:bg-red-600 animate-pulse';
+            micIcon = <Loader2 className="w-6 h-6 animate-spin" />;
+        } else if (selectedAnswer) {
+            const isCorrect = selectedAnswer === currentItem.correct;
+            buttonText = isCorrect ? 'Correct! Next Word' : 'Incorrect. Game Over'; 
+            buttonClass = isCorrect ? 'bg-emerald-500' : 'bg-red-500';
+            micIcon = isCorrect ? <CheckCircle className="w-6 h-6" /> : <XCircle className="w-6 h-6" />;
+        }
+
         if (showRewardModal || showVideoModal) {
             const animal = animalData;
-            if (!animal) return null; // Skipped via useEffect
+            if (!animal) return null; 
             const totalFacts = (window.ANIMAL_DATABASE || []).find(a => a.name === animal.name)?.facts.length || 10;
           
             if (showVideoModal) {
@@ -1325,7 +1488,6 @@ const AnimalReadingApp = () => {
                                     Total Facts Earned: <span className="font-semibold text-emerald-600">{`${animal.earnedFactIndex} / ${totalFacts}`}</span>
                                 </p>
                                
-                                {/* Image moved above "New Fact" text */}
                                 <div className="h-48 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden shadow-inner">
                                     {isLoading ? (
                                         <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
@@ -1341,7 +1503,6 @@ const AnimalReadingApp = () => {
                               
                                 <h4 className="text-lg font-semibold text-gray-700 mt-4 pt-4 border-t">New Fact:</h4>
                                
-                                {/* Green Fact Box moved below "New Fact" text. Now explicitly relies on click. */}
                                 <button
                                     onClick={() => speak(animal.facts[animal.earnedFactIndex - 1])}
                                     disabled={isSpeaking}
@@ -1364,23 +1525,6 @@ const AnimalReadingApp = () => {
             }
         }
        
-        // Determine button state and text
-        const isDisabled = selectedAnswer !== null;
-        
-        let buttonText = 'Tap to Start Speaking'; // Changed prompt
-        let buttonClass = 'bg-emerald-500 hover:bg-emerald-600';
-        let micIcon = <Volume2 className="w-6 h-6" />;
-       
-        if (isListening) {
-            buttonText = 'Tap to Stop Listening'; // New prompt
-            buttonClass = 'bg-red-500 hover:bg-red-600 animate-pulse';
-            micIcon = <Loader2 className="w-6 h-6 animate-spin" />;
-        } else if (selectedAnswer) {
-            const isCorrect = selectedAnswer === currentItem.correct;
-            buttonText = isCorrect ? 'Correct! Next Word' : 'Incorrect. Game Over'; // Clearer feedback
-            buttonClass = isCorrect ? 'bg-emerald-500' : 'bg-red-500';
-            micIcon = isCorrect ? <CheckCircle className="w-6 h-6" /> : <XCircle className="w-6 h-6" />;
-        }
         return (
             <MainContainer sidebarProps={sidebarProps}>
                 <div className="w-full max-w-lg">
@@ -1395,26 +1539,30 @@ const AnimalReadingApp = () => {
                         </div>
                         <h2 className="text-xl font-bold text-gray-700 max-sm:hidden">Read Word Challenge</h2>
                     </div>
+                    {apiError && (
+                        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg shadow-md text-sm" role="alert">
+                            <p className="font-bold">Microphone/API Warning:</p> <p>{apiError}</p>
+                        </div>
+                    )}
                     <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-xl text-center">
                       
                         <div className="h-48 bg-gray-100 border-2 border-emerald-100 rounded-xl flex flex-col items-center justify-center shadow-inner mb-6">
                             <span className="text-5xl font-extrabold text-gray-800">{currentItem.correct}</span>
                         </div>
                         <p className="text-center text-lg font-semibold text-gray-700 mb-4">
-                            {isListening ? "Listening... Speak clearly!" : "Tap the button and say the word above."}
+                            {isListening ? "Listening... Speak clearly!" : (selectedAnswer ? "" : "Tap the button and say the word above.")}
                         </p>
                         <button
-                            // --- STABLE ONCLICK LOGIC ---
                             onClick={() => {
-                                if (isListening) {
-                                    stopListening();
-                                } else if (!isDisabled) {
-                                    setTranscript(''); // Clear previous transcript on start
-                                    setIsFinal(false); // Reset final status
-                                    startListening();
+                                if (canStart) {
+                                    setApiError(null); // Clear previous API error
+                                    checkSpeech(); // Start the async process
+                                } else if (isListening) {
+                                    // If manually stopped while listening, abort the current attempt
+                                    abortRecognition(); 
                                 }
                             }}
-                            disabled={isDisabled}
+                            disabled={!canStart}
                             className={`w-full text-white text-xl font-bold py-3 px-8 rounded-xl flex items-center justify-center gap-3 mx-auto transition-all transform hover:scale-105 shadow-md shadow-emerald-500/20 disabled:opacity-50 select-none ${buttonClass}`}
                         >
                             {micIcon} {buttonText}
@@ -1422,9 +1570,11 @@ const AnimalReadingApp = () => {
                        
                         <div className="mt-4 p-2 bg-gray-50 rounded-lg text-sm text-gray-700">
                             <p className="font-semibold">You said:</p>
-                            <p className="font-mono text-base break-words">{transcript || (selectedAnswer ? selectedAnswer : "...")}</p>
+                            <p className="font-mono text-base break-words">
+                                {isListening ? transcript : (selectedAnswer || "...")}
+                            </p>
                         </div>
-                        {selectedAnswer && (
+                        {gameEnded && (
                             <button
                                 onClick={() => moveToNextQuestion(null)}
                                 className="w-full bg-emerald-500 text-white font-semibold py-3 rounded-xl hover:bg-emerald-600 transition-colors mt-4"
