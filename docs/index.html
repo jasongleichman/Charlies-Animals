@@ -239,6 +239,7 @@ const useAppState = () => {
         const [isFinal, setIsFinal] = useState(false);
         const recognitionRef = useRef(null);
         const micTimeoutRef = useRef(null);
+        const isRunningRef = useRef(false); // <--- CRITICAL FIX: Track if recognition is actively running
 
         // Utility to clean up listeners and state
         const cleanup = useCallback(() => {
@@ -246,14 +247,18 @@ const useAppState = () => {
                  clearTimeout(micTimeoutRef.current);
                  micTimeoutRef.current = null;
              }
-             if (recognitionRef.current) {
+             
+             // CRITICAL FIX: Only abort if the recognition object exists AND is running
+             if (recognitionRef.current && isRunningRef.current) {
                  try {
-                     // Ensure the recognition object is stopped/aborted
-                     recognitionRef.current.abort();
+                     recognitionRef.current.abort(); // Use abort for aggressive cleanup
                  } catch (e) {
                      console.warn("Error during recognition cleanup abort:", e);
                  }
              }
+
+             // Reset state variables
+             isRunningRef.current = false;
              setIsListening(false);
         }, []);
         
@@ -263,7 +268,7 @@ const useAppState = () => {
                 return;
             }
            
-            cleanup(); // Aggressively stop any previous instance before starting new one
+            cleanup(); // Ensure any previous instance is completely aborted before starting new one
            
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
@@ -272,18 +277,19 @@ const useAppState = () => {
             recognition.interimResults = true;
             recognition.lang = 'en-US';
             
-            setTranscript(''); // Clear state on start
-            setIsFinal(false); // Clear state on start
+            setTranscript(''); 
+            setIsFinal(false);
 
             recognition.onstart = () => {
+                isRunningRef.current = true; // Mark as running
                 setIsListening(true);
-                // Set a timeout to automatically stop listening if no final result is received
+                
                 if (micTimeoutRef.current) clearTimeout(micTimeoutRef.current);
                 micTimeoutRef.current = setTimeout(() => {
-                    if (recognitionRef.current) {
-                        recognitionRef.current.stop();
+                    if (recognitionRef.current && isRunningRef.current) {
+                        recognitionRef.current.stop(); // Graceful stop on timeout
                     }
-                }, 5000); // Stop after 5 seconds of total time
+                }, 5000); 
             };
             
             recognition.onresult = (event) => {
@@ -300,46 +306,56 @@ const useAppState = () => {
                 setTranscript(finalTranscript || interimTranscript);
                 if (finalTranscript) {
                     setIsFinal(true);
-                    // Crucial: Clear timeout and stop recognition to prevent a blank state
-                    cleanup(); 
+                    // On final result, use stop() to trigger onend gracefully
+                    if (recognitionRef.current) {
+                        recognitionRef.current.stop(); 
+                    }
                 }
             };
+
             recognition.onerror = (event) => {
                 console.error('Speech recognition error', event.error);
-                cleanup();
+                isRunningRef.current = false; // Must mark as not running here
+                setIsListening(false);
+                if (micTimeoutRef.current) clearTimeout(micTimeoutRef.current);
             };
+            
             recognition.onend = () => {
+                // If the recognition stopped normally, unset the running flag and clean up timeout
+                isRunningRef.current = false;
+                setIsListening(false);
+                if (micTimeoutRef.current) clearTimeout(micTimeoutRef.current);
+                
                 // If it ended without a final result, and we have an interim transcript, mark it as final
                 if (transcript && !isFinal) {
                     setIsFinal(true);
                 }
-                cleanup();
             };
            
             try {
                 recognition.start();
             } catch (e) {
                 console.error('Failed to start recognition', e);
-                cleanup();
+                isRunningRef.current = false;
+                setIsListening(false);
+                if (micTimeoutRef.current) clearTimeout(micTimeoutRef.current);
             }
-        }, [cleanup, transcript, isFinal]);
+        }, [cleanup, transcript, isFinal]); 
        
         const stopListening = useCallback(() => {
-             // Stop the recognition gracefully, which will trigger onend/onerror
-             if (recognitionRef.current) {
+             // Stop the recognition gracefully, which will trigger onend
+             if (recognitionRef.current && isRunningRef.current) {
                  recognitionRef.current.stop();
              }
-             // cleanup will be called inside onend
         }, []);
        
         // CLEANUP EFFECT: Stops recognition when the component is unmounted
         useEffect(() => {
             return () => {
-                cleanup();
+                cleanup(); // This will abort the recognition when the component unmounts
             };
         }, [cleanup]);
 
-        // Expose setTranscript and setIsFinal for manual reset before starting
         return { transcript, isListening, isFinal, startListening, stopListening, setTranscript, setIsFinal };
     };
    
@@ -1462,8 +1478,6 @@ const AnimalReadingApp = () => {
         // Determine button state and text
         const isDisabled = selectedAnswer !== null;
         
-        // --- REMOVED handlePressStart and replaced with simple click logic ---
-        
         let buttonText = 'Tap to Start Speaking'; // Changed prompt
         let buttonClass = 'bg-emerald-500 hover:bg-emerald-600';
         let micIcon = <Volume2 className="w-6 h-6" />;
@@ -1501,7 +1515,7 @@ const AnimalReadingApp = () => {
                             {isListening ? "Listening... Speak clearly!" : "Tap the button and say the word above."}
                         </p>
                         <button
-                            // --- MODIFIED: Use a simple onClick to toggle listening state ---
+                            // --- STABLE ONCLICK LOGIC ---
                             onClick={() => {
                                 if (isListening) {
                                     stopListening();
